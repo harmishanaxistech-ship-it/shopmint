@@ -1,0 +1,43 @@
+# Node & Server
+server/node_modules/
+server/.env
+server/npm-debug.log*
+server/yarn-debug.log*
+server/yarn-error.log*
+
+# Flutter & Dart
+app/.dart_tool/
+app/.flutter-plugins
+app/.flutter-plugins-dependencies
+app/.packages
+app/.pub-cache/
+app/.pub/
+app/build/
+app/coverage/
+app/android/app/debug/
+app/android/app/profile/
+app/android/app/release/
+app/ios/Flutter/.last_build_id
+app/ios/Pods/
+app/ios/.symlinks/
+
+# OS and IDE Files
+.agents/
+extracted_theme/
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*.swp
+*.swo
+*~
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Logs
+*.log
