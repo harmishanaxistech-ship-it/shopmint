@@ -7,6 +7,7 @@ router.get('/', protect, productController.getProducts);
 router.get('/barcode/:barcode', protect, productController.getProductByBarcode);
 router.post('/', protect, ownerOnly, productController.createProduct);
 router.put('/:id', protect, ownerOnly, productController.updateProduct);
+router.delete('/:id', protect, ownerOnly, productController.deleteProduct);
 router.post('/:id/add-stock', protect, ownerOnly, productController.addStock);
 router.post('/:id/adjust-stock', protect, ownerOnly, productController.adjustStock);
 

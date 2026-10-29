@@ -1,317 +1,271 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import '../../core/localization/locale_provider.dart';
 import '../../core/theme/app_colors.dart';
-import '../../core/theme/app_tokens.dart';
-import '../../core/utils/currency_formatter.dart';
 import '../../core/utils/receipt_share_helper.dart';
 import '../../models/bill_model.dart';
+import '../../providers/auth_provider.dart';
 import '../../widgets/app_3d_button.dart';
-import 'new_bill_screen.dart';
+import '../../widgets/shop_mint_components.dart';
+
+class ReceiptLineItem {
+  final String name;
+  final double qty;
+  final double price;
+  ReceiptLineItem({required this.name, required this.qty, required this.price});
+}
 
 class ReceiptScreen extends StatelessWidget {
-  final BillModel bill;
+  final BillModel? bill;
+  final List<dynamic>? lines;
+  final double? total;
+  final String? paymentMode;
 
-  const ReceiptScreen({super.key, required this.bill});
+  const ReceiptScreen({
+    super.key,
+    this.bill,
+    this.lines,
+    this.total,
+    this.paymentMode,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final dateFormat = DateFormat('dd/MM/yyyy, hh:mm a');
-    final loc = Provider.of<LocaleProvider>(context);
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    final String storeName = (auth.currentUser?.shopName != null &&
+            auth.currentUser!.shopName.trim().isNotEmpty)
+        ? auth.currentUser!.shopName
+        : 'Ramesh Kirana Store';
+
+    final String billNo = bill != null
+        ? bill!.billNo
+        : '#SM-${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}';
+
+    final String dateString = bill != null
+        ? bill!.createdAt.toString().substring(0, 16)
+        : DateTime.now().toString().substring(0, 16);
+
+    final double grandTotalRupees = total ??
+        (bill != null ? (bill!.grandTotal / 100.0) : 0.0);
+
+    final String payMode = paymentMode ?? (bill?.paymentType ?? 'Cash');
+
+    final List<ReceiptLineItem> lineItems = [];
+    if (lines != null) {
+      for (final l in lines!) {
+        // can be CartLine or CartItemModel
+        try {
+          lineItems.add(ReceiptLineItem(
+            name: l.product?.name ?? l.name ?? 'Item',
+            qty: (l.qty as num).toDouble(),
+            price: (l.product?.price ?? (l.rate != null ? l.rate / 100.0 : 0.0)).toDouble(),
+          ));
+        } catch (_) {}
+      }
+    } else if (bill != null) {
+      for (final i in bill!.items) {
+        lineItems.add(ReceiptLineItem(
+          name: i.name,
+          qty: i.qty,
+          price: i.rate / 100.0,
+        ));
+      }
+    }
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.bg,
       appBar: AppBar(
-        title: Text(loc.t('receiptTitle')),
-        automaticallyImplyLeading: false,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.share_outlined),
-            tooltip: 'Share Receipt',
-            onPressed: () => ReceiptShareHelper.shareReceipt(bill),
-          ),
-          IconButton(
-            icon: const Icon(Icons.close),
-            onPressed: () => Navigator.pop(context),
-          ),
-        ],
+        backgroundColor: AppColors.bg,
+        title: const Text('Bill completed', style: TextStyle(fontWeight: FontWeight.w700)),
+        leading: IconButton(
+          onPressed: () => Navigator.pop(context),
+          icon: const Icon(Icons.close),
+        ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+      body: SafeArea(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Success Banner
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: AppColors.successSoft,
-                borderRadius: AppRadius.mdAll,
-                border: Border.all(color: AppColors.success.withAlpha(80)),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.check_circle, color: AppColors.success, size: 24),
-                  const SizedBox(width: 12),
-                  Expanded(
+            Expanded(
+              child: Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(18),
+                  child: Container(
+                    width: 380,
+                    padding: const EdgeInsets.all(22),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x12000000),
+                          blurRadius: 16,
+                          offset: Offset(0, 5),
+                        ),
+                      ],
+                    ),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        const Text(
-                          'Bill Generated Successfully',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.success,
+                        const Center(child: BrandWordmark()),
+                        const SizedBox(height: 4),
+                        Text(
+                          storeName,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(fontSize: 13, color: AppColors.muted),
+                        ),
+                        const SizedBox(height: 16),
+                        const Divider(color: AppColors.border, height: 1),
+                        const SizedBox(height: 12),
+                        Text(
+                          'BILL  $billNo',
+                          style: const TextStyle(fontSize: 11, color: AppColors.muted),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          dateString,
+                          style: const TextStyle(fontSize: 11, color: AppColors.muted),
+                        ),
+                        const SizedBox(height: 12),
+                        const Divider(color: AppColors.border, height: 1),
+                        const SizedBox(height: 8),
+                        const Row(
+                          children: [
+                            Expanded(
+                              child: Text('ITEM', style: TextStyle(fontSize: 10, color: AppColors.muted)),
+                            ),
+                            Text('QTY', style: TextStyle(fontSize: 10, color: AppColors.muted)),
+                            SizedBox(width: 44),
+                            Text('AMOUNT', style: TextStyle(fontSize: 10, color: AppColors.muted)),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        ...lineItems.map(
+                          (line) => Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 5),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(line.name, style: const TextStyle(fontSize: 12)),
+                                ),
+                                Text('${line.qty.toInt()}', style: const TextStyle(fontSize: 12)),
+                                const SizedBox(width: 26),
+                                SizedBox(
+                                  width: 54,
+                                  child: Text(
+                                    '₹${(line.qty * line.price).toStringAsFixed(0)}',
+                                    textAlign: TextAlign.right,
+                                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
+                        const SizedBox(height: 8),
+                        const Divider(color: AppColors.border, height: 1),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            const Expanded(
+                              child: Text('Subtotal', style: TextStyle(color: AppColors.muted)),
+                            ),
+                            Text('₹${grandTotalRupees.toStringAsFixed(0)}', style: const TextStyle(color: AppColors.muted)),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            const Expanded(
+                              child: Text(
+                                'Grand total',
+                                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                              ),
+                            ),
+                            Text(
+                              '₹${grandTotalRupees.toStringAsFixed(0)}',
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.teal,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 9),
                         Text(
-                          'Bill No: ${bill.billNo}',
+                          'Paid via $payMode',
+                          textAlign: TextAlign.center,
                           style: const TextStyle(
+                            color: AppColors.green,
                             fontSize: 12,
-                            color: AppColors.textSecondary,
+                            fontWeight: FontWeight.w600,
                           ),
+                        ),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'Thank you for shopping with us!',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: AppColors.muted, fontSize: 12),
                         ),
                       ],
                     ),
                   ),
-                ],
+                ),
               ),
             ),
-            const SizedBox(height: 16),
-
-            // Share Actions Hub (WhatsApp & System Share)
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: AppRadius.lgAll,
-                border: Border.all(color: AppColors.border),
-              ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 8, 18, 18),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.send_outlined, color: AppColors.primary, size: 20),
-                      const SizedBox(width: 8),
-                      Text('Fast Bill Sharing', style: AppText.h3),
-                    ],
+                  App3dButton(
+                    label: 'SHARE RECEIPT',
+                    icon: Icons.share_outlined,
+                    onPressed: () {
+                      if (bill != null) {
+                        ReceiptShareHelper.shareReceipt(bill!);
+                      } else {
+                        Clipboard.setData(
+                          ClipboardData(
+                            text: '$storeName\nBill: $billNo\nTotal: ₹${grandTotalRupees.toStringAsFixed(0)}\nPaid via $payMode',
+                          ),
+                        );
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Receipt ready to share')),
+                        );
+                      }
+                    },
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 8),
                   Row(
                     children: [
                       Expanded(
-                        child: App3dButton.mint(
-                          height: 48,
-                          icon: Icons.share,
-                          label: 'Share Receipt',
-                          onPressed: () => ReceiptShareHelper.shareReceipt(bill),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      OutlinedButton.icon(
-                        icon: const Icon(Icons.copy_outlined, size: 18),
-                        label: const Text('Copy'),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-                        ),
-                        onPressed: () async {
-                          await ReceiptShareHelper.copyReceipt(bill);
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Receipt text copied to clipboard!'),
-                                duration: Duration(seconds: 2),
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            Clipboard.setData(
+                              ClipboardData(
+                                text: '$storeName\nTotal: ₹${grandTotalRupees.toStringAsFixed(0)}\nPaid via $payMode',
                               ),
                             );
-                          }
-                        },
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Receipt copied')),
+                            );
+                          },
+                          icon: const Icon(Icons.copy),
+                          label: const Text('Copy'),
+                        ),
+                      ),
+                      const SizedBox(width: 9),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => Navigator.pop(context),
+                          icon: const Icon(Icons.add),
+                          label: const Text('Next Bill'),
+                        ),
                       ),
                     ],
                   ),
                 ],
               ),
-            ),
-            const SizedBox(height: 16),
-
-            // Printable / Thermal Receipt Card
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: AppRadius.lgAll,
-                border: Border.all(color: AppColors.border),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Center(
-                    child: Column(
-                      children: [
-                        Text(loc.t('receiptTitle'), style: AppText.h2),
-                        const SizedBox(height: 4),
-                        Text('${loc.t('billNo')}: ${bill.billNo}', style: AppText.label),
-                        Text(dateFormat.format(bill.createdAt), style: AppText.caption),
-                      ],
-                    ),
-                  ),
-                  const Divider(height: 28),
-
-                  // Customer info
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('${loc.t('customer')}: ${bill.customerName}', style: AppText.bodyLarge),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: bill.paymentType == 'Credit' ? AppColors.errorSoft : AppColors.successSoft,
-                          borderRadius: AppRadius.smAll,
-                        ),
-                        child: Text(
-                          bill.paymentType,
-                          style: AppText.label.copyWith(
-                            color: bill.paymentType == 'Credit' ? AppColors.error : AppColors.success,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const Divider(height: 24),
-
-                  // Items Table Header
-                  Row(
-                    children: [
-                      Expanded(flex: 4, child: Text(loc.t('itemName'), style: AppText.caption)),
-                      Expanded(flex: 2, child: Text(loc.t('qty'), textAlign: TextAlign.center, style: AppText.caption)),
-                      Expanded(flex: 2, child: Text(loc.t('rate'), textAlign: TextAlign.right, style: AppText.caption)),
-                      Expanded(flex: 3, child: Text(loc.t('amount'), textAlign: TextAlign.right, style: AppText.caption)),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-
-                  // Items Rows
-                  ...bill.items.map((item) {
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: Row(
-                        children: [
-                          Expanded(flex: 4, child: Text(item.name, style: AppText.body)),
-                          Expanded(
-                            flex: 2,
-                            child: Text(
-                              '${item.qty.toStringAsFixed(item.qty % 1 == 0 ? 0 : 2)} ${item.unit}',
-                              textAlign: TextAlign.center,
-                              style: AppText.caption,
-                            ),
-                          ),
-                          Expanded(
-                            flex: 2,
-                            child: Text(
-                              CurrencyFormatter.formatPaise(item.rate, hideZeroDecimals: true),
-                              textAlign: TextAlign.right,
-                              style: AppText.caption,
-                            ),
-                          ),
-                          Expanded(
-                            flex: 3,
-                            child: Text(
-                              CurrencyFormatter.formatPaise(item.amount),
-                              textAlign: TextAlign.right,
-                              style: AppText.amount,
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }),
-
-                  const Divider(height: 24),
-
-                  // Subtotal & Discount
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('Subtotal', style: AppText.caption),
-                      Text(CurrencyFormatter.formatPaise(bill.subtotal), style: AppText.caption),
-                    ],
-                  ),
-                  if (bill.billDiscount > 0) ...[
-                    const SizedBox(height: 4),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('Discount', style: AppText.caption.copyWith(color: AppColors.success)),
-                        Text('-${CurrencyFormatter.formatPaise(bill.billDiscount)}', style: AppText.caption.copyWith(color: AppColors.success)),
-                      ],
-                    ),
-                  ],
-                  const SizedBox(height: 8),
-
-                  // Grand Total
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('${loc.t('grandTotal')}:', style: AppText.h3),
-                      Text(
-                        CurrencyFormatter.formatPaise(bill.grandTotal),
-                        style: AppText.amountLarge,
-                      ),
-                    ],
-                  ),
-
-                  if (bill.balanceDue > 0) ...[
-                    const SizedBox(height: 6),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('${loc.t('received')}:', style: AppText.caption),
-                        Text(CurrencyFormatter.formatPaise(bill.amountReceived), style: AppText.caption),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('${loc.t('balanceDue')}:', style: AppText.label.copyWith(color: AppColors.error)),
-                        Text(
-                          CurrencyFormatter.formatPaise(bill.balanceDue),
-                          style: AppText.amount.copyWith(color: AppColors.error),
-                        ),
-                      ],
-                    ),
-                  ],
-
-                  const SizedBox(height: 20),
-                  Center(
-                    child: Text(loc.t('thankYou'), style: AppText.caption),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Actions: Next Bill & Home
-            App3dButton.mint(
-              height: 50,
-              icon: Icons.add_shopping_cart,
-              label: loc.t('nextBill'),
-              onPressed: () {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (_) => const NewBillScreen()),
-                );
-              },
-            ),
-            const SizedBox(height: 10),
-            OutlinedButton(
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 14),
-              ),
-              child: Text(loc.t('done')),
-              onPressed: () => Navigator.pop(context),
             ),
           ],
         ),

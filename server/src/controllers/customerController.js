@@ -51,9 +51,11 @@ exports.createCustomer = async (req, res) => {
         active: true
       });
       if (existing) {
-        return res.status(400).json({
-          code: 'DUPLICATE_MOBILE',
-          message: 'A customer with this mobile number already exists.'
+        if (name && name.trim()) existing.name = name.trim();
+        await existing.save();
+        return res.status(200).json({
+          success: true,
+          customer: existing
         });
       }
     }

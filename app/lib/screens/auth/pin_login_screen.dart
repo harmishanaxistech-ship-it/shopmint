@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/localization/locale_provider.dart';
-import '../../core/theme/app_colors.dart';
-import '../../core/theme/app_tokens.dart';
 import '../../providers/auth_provider.dart';
 import '../main_navigation_shell.dart';
 import 'quick_register_screen.dart';
@@ -45,56 +43,11 @@ class _PinLoginScreenState extends State<PinLoginScreen> {
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(auth.errorMessage ?? 'Login failed'),
-          backgroundColor: AppColors.error,
+          content: Text(auth.errorMessage ?? 'Login failed. Please check credentials.'),
+          backgroundColor: const Color(0xFFD94B4B),
         ),
       );
     }
-  }
-
-  void _showLanguageSelector(BuildContext context) {
-    final loc = Provider.of<LocaleProvider>(context, listen: false);
-    showModalBottomSheet(
-      context: context,
-      builder: (ctx) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Text(loc.t('selectLanguage'), style: AppText.h3),
-              ),
-              ListTile(
-                title: const Text('English (Default)'),
-                trailing: loc.currentLanguage == 'en' ? const Icon(Icons.check, color: AppColors.primaryDark) : null,
-                onTap: () {
-                  loc.setLocale('en');
-                  Navigator.pop(ctx);
-                },
-              ),
-              ListTile(
-                title: const Text('ગુજરાતી (Gujarati)'),
-                trailing: loc.currentLanguage == 'gu' ? const Icon(Icons.check, color: AppColors.primaryDark) : null,
-                onTap: () {
-                  loc.setLocale('gu');
-                  Navigator.pop(ctx);
-                },
-              ),
-              ListTile(
-                title: const Text('हिन्दी (Hindi)'),
-                trailing: loc.currentLanguage == 'hi' ? const Icon(Icons.check, color: AppColors.primaryDark) : null,
-                onTap: () {
-                  loc.setLocale('hi');
-                  Navigator.pop(ctx);
-                },
-              ),
-              const SizedBox(height: 8),
-            ],
-          ),
-        );
-      },
-    );
   }
 
   @override
@@ -103,106 +56,172 @@ class _PinLoginScreenState extends State<PinLoginScreen> {
     final loc = Provider.of<LocaleProvider>(context);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        actions: [
-          TextButton.icon(
-            icon: const Icon(Icons.language_outlined, size: 18),
-            label: Text(loc.currentLanguage.toUpperCase()),
-            onPressed: () => _showLanguageSelector(context),
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
+      backgroundColor: const Color(0xFFF5FAF9),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: 16),
-                Container(
-                  width: 64,
-                  height: 64,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: AppRadius.mdAll,
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 72,
+                      height: 72,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [Color(0xFF17C3B2), Color(0xFF0F766E)],
+                        ),
+                        borderRadius: BorderRadius.circular(18),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color(0xFF084B45),
+                            offset: Offset(0, 3),
+                            blurRadius: 0,
+                          ),
+                        ],
+                      ),
+                      child: const Center(
+                        child: Icon(Icons.storefront_rounded, size: 38, color: Colors.white),
+                      ),
+                    ),
                   ),
-                  child: const Icon(Icons.lock_outline, size: 32, color: AppColors.onPrimary),
-                ),
-                const SizedBox(height: 24),
-                Text(loc.t('loginTitle'), style: AppText.h1),
-                const SizedBox(height: 8),
-                Text(loc.t('loginSubtitle'), style: AppText.body),
-                const SizedBox(height: 32),
-
-                // Mobile
-                TextFormField(
-                  controller: _mobileController,
-                  keyboardType: TextInputType.phone,
-                  maxLength: 10,
-                  decoration: InputDecoration(
-                    labelText: loc.t('mobileNumber'),
-                    hintText: loc.t('mobileHint'),
-                    prefixText: '+91 ',
-                    counterText: '',
+                  const SizedBox(height: 20),
+                  const Center(
+                    child: Text(
+                      'Shopkeeper Login',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
+                        color: Color(0xFF0F766E),
+                      ),
+                    ),
                   ),
-                  validator: (val) {
-                    if (val == null || val.length != 10) {
-                      return loc.t('mobileError');
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // 4-digit PIN
-                TextFormField(
-                  controller: _pinController,
-                  keyboardType: TextInputType.number,
-                  obscureText: true,
-                  maxLength: 4,
-                  decoration: InputDecoration(
-                    labelText: loc.t('pin'),
-                    hintText: loc.t('pinHint'),
-                    counterText: '',
+                  const SizedBox(height: 6),
+                  const Center(
+                    child: Text(
+                      'Enter your registered mobile & 4-digit PIN',
+                      style: TextStyle(fontSize: 13, color: Color(0xFF708784)),
+                    ),
                   ),
-                  validator: (val) {
-                    if (val == null || val.length != 4) {
-                      return loc.t('pinError');
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 24),
+                  const SizedBox(height: 28),
 
-                // Submit Button
-                FilledButton(
-                  onPressed: auth.isLoading ? null : _handleLogin,
-                  child: auth.isLoading
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.onPrimary),
-                        )
-                      : Text(loc.t('loginButton')),
-                ),
-                const SizedBox(height: 20),
+                  // Mobile
+                  TextFormField(
+                    controller: _mobileController,
+                    keyboardType: TextInputType.phone,
+                    maxLength: 10,
+                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF153330)),
+                    decoration: InputDecoration(
+                      labelText: loc.t('mobileNumber'),
+                      hintText: '10-digit mobile number',
+                      prefixText: '+91 ',
+                      counterText: '',
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE4EFED))),
+                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE4EFED))),
+                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF0F766E), width: 1.5)),
+                    ),
+                    validator: (val) {
+                      if (val == null || val.length != 10) {
+                        return 'Please enter valid 10-digit mobile';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
 
-                // Go to register
-                OutlinedButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const QuickRegisterScreen()),
-                    );
-                  },
-                  child: Text(loc.t('registerStorePrompt')),
-                ),
-              ],
+                  // 4-digit PIN
+                  TextFormField(
+                    controller: _pinController,
+                    keyboardType: TextInputType.number,
+                    obscureText: true,
+                    maxLength: 4,
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF153330), letterSpacing: 4),
+                    decoration: InputDecoration(
+                      labelText: '4-Digit Security PIN',
+                      hintText: '****',
+                      counterText: '',
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE4EFED))),
+                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE4EFED))),
+                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF0F766E), width: 1.5)),
+                    ),
+                    validator: (val) {
+                      if (val == null || val.length != 4) {
+                        return 'PIN must be exactly 4 digits';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Submit Button
+                  Vanik3DButton(
+                    variant: VanikButtonVariant.green,
+                    height: 50,
+                    fontSize: 15,
+                    label: auth.isLoading ? 'Verifying...' : 'Login to Store',
+                    icon: auth.isLoading
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Icon(Icons.login_rounded, size: 18, color: Colors.white),
+                    onPressed: auth.isLoading ? () {} : _handleLogin,
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Go to register
+                  Vanik3DButton(
+                    variant: VanikButtonVariant.beige,
+                    height: 48,
+                    fontSize: 14,
+                    label: 'Register New Store',
+                    icon: const Icon(Icons.add_business_outlined, size: 18, color: Color(0xFF0F766E)),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const QuickRegisterScreen()),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Demo store bypass
+                  Center(
+                    child: TextButton.icon(
+                      icon: const Icon(Icons.storefront_outlined, size: 16, color: Color(0xFF708784)),
+                      label: const Text(
+                        'Continue to Demo Store',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF0F766E),
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                      onPressed: () async {
+                        final auth = Provider.of<AuthProvider>(context, listen: false);
+                        await auth.loginAsDemo();
+                        if (context.mounted) {
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(builder: (_) => const MainNavigationShell()),
+                          );
+                        }
+                      },
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

@@ -72,7 +72,8 @@ class CustomerProvider extends ChangeNotifier {
         _countWithBalance = response.data['countWithBalance'] ?? 0;
       }
     } on DioException catch (e) {
-      _errorMessage = e.response?.data?['message'] ?? 'Failed to load customers';
+      final data = e.response?.data;
+      _errorMessage = (data is Map ? data['message'] : null)?.toString() ?? 'Failed to load customers';
     } catch (_) {
       _errorMessage = 'Could not load customers.';
     }
@@ -98,7 +99,7 @@ class CustomerProvider extends ChangeNotifier {
         },
       );
 
-      if (response.statusCode == 201 && response.data['success'] == true) {
+      if ((response.statusCode == 200 || response.statusCode == 201) && response.data['success'] == true) {
         final newCust = CustomerModel.fromJson(response.data['customer']);
         await fetchCustomers();
         return newCust;

@@ -9,8 +9,8 @@ void main() {
   FlutterSecureStorage.setMockInitialValues({});
 
   testWidgets('App smoke test', (WidgetTester tester) async {
-    await tester.pumpWidget(const ScanKiranaApp());
-    expect(find.text('ShopMint'), findsOneWidget);
+    await tester.pumpWidget(const ShopMintApp());
+    expect(find.text('Ramesh Kirana'), findsOneWidget);
     await tester.pump(const Duration(milliseconds: 1500));
     await tester.pump(const Duration(milliseconds: 500));
   });

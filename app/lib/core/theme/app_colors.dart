@@ -11,7 +11,16 @@ class AppColors {
   // Brand
   static const Color primary = Color(0xFF14B8A6); // Teal Mint
   static const Color primaryDark = Color(0xFF0F766E); // Headings, active states
-  static const Color mint = Color(0xFF99F6E4); // Highlights, subtle accents
+  static const Color mint = Color(0xFF14B8A6); // Mint alias
+  static const Color teal = Color(0xFF0F766E); // Teal alias
+  static const Color brightTeal = Color(0xFF17C3B2); // 3D button gradient top
+  static const Color deepTeal = Color(0xFF084B45); // 3D button bevel base
+  static const Color paleMint = Color(0xFFCCFBF1); // Soft teal mint surface
+  static const Color bg = Color(0xFFF0FDFA); // Background alias
+  static const Color ink = Color(0xFF0F2A29); // Primary text alias
+  static const Color muted = Color(0xFF527270); // Secondary text alias
+  static const Color red = Color(0xFFDC2626); // Alert red alias
+  static const Color green = Color(0xFF16A34A); // Success green alias
 
   // Surfaces
   static const Color background = Color(0xFFF0FDFA); // Main screen backgrounds

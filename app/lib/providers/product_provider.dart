@@ -51,7 +51,8 @@ class ProductProvider extends ChangeNotifier {
         _products = raw.map((e) => ProductModel.fromJson(e)).toList();
       }
     } on DioException catch (e) {
-      _errorMessage = e.response?.data?['message'] ?? 'Failed to load products';
+      final data = e.response?.data;
+      _errorMessage = (data is Map ? data['message'] : null)?.toString() ?? 'Failed to load products';
     } catch (_) {
       _errorMessage = 'Could not load products. Please check connection.';
     }
@@ -134,6 +135,60 @@ class ProductProvider extends ChangeNotifier {
 
       if (response.statusCode == 200 && response.data['success'] == true) {
         await fetchProducts();
+        return true;
+      }
+    } catch (_) {}
+    return false;
+  }
+
+  Future<bool> updateProduct({
+    required String productId,
+    String? name,
+    String? barcode,
+    String? unit,
+    int? purchasePrice,
+    int? sellingPrice,
+    double? currentStock,
+    String? imageUrl,
+  }) async {
+    try {
+      final mapData = <String, dynamic>{};
+      if (name != null && name.isNotEmpty) mapData['name'] = name.trim();
+      if (barcode != null) mapData['barcode'] = barcode.trim();
+      if (unit != null) mapData['unit'] = unit;
+      if (purchasePrice != null) mapData['purchasePrice'] = purchasePrice;
+      if (sellingPrice != null) mapData['sellingPrice'] = sellingPrice;
+      if (imageUrl != null) mapData['imageUrl'] = imageUrl.trim();
+
+      final response = await _client.dio.put(
+        '${ApiConstants.products}/$productId',
+        data: mapData,
+      );
+
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        if (barcode != null && barcode.trim().isNotEmpty && name != null) {
+          MasterCatalogService.saveToMaster(
+            MasterProductItem(
+              barcode: barcode.trim(),
+              name: name.trim(),
+              image: imageUrl?.trim() ?? '',
+              unit: unit ?? 'piece',
+            ),
+          );
+        }
+        await fetchProducts();
+        return true;
+      }
+    } catch (_) {}
+    return false;
+  }
+
+  Future<bool> deleteProduct(String productId) async {
+    try {
+      final response = await _client.dio.delete('${ApiConstants.products}/$productId');
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        _products.removeWhere((p) => p.id == productId);
+        notifyListeners();
         return true;
       }
     } catch (_) {}

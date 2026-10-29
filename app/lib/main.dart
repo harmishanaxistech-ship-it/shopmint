@@ -1,43 +1,57 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'core/localization/locale_provider.dart';
-import 'core/theme/app_theme.dart';
 import 'providers/auth_provider.dart';
 import 'providers/billing_provider.dart';
 import 'providers/customer_provider.dart';
 import 'providers/dashboard_provider.dart';
 import 'providers/product_provider.dart';
+import 'screens/main_navigation_shell.dart';
 import 'screens/splash_screen.dart';
+import 'widgets/shop_mint_components.dart';
 
-void main() {
+export 'screens/main_navigation_shell.dart';
+export 'screens/splash_screen.dart';
+
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const ScanKiranaApp());
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+  ]);
+  runApp(const ShopMintApp(home: SplashScreen()));
 }
 
-class ScanKiranaApp extends StatelessWidget {
-  const ScanKiranaApp({super.key});
+class ShopMintApp extends StatelessWidget {
+  final Widget? home;
+  const ShopMintApp({super.key, this.home});
 
   @override
-  Widget build(BuildContext context) {
-    return MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => LocaleProvider()),
-        ChangeNotifierProvider(create: (_) => AuthProvider()),
-        ChangeNotifierProvider(create: (_) => ProductProvider()),
-        ChangeNotifierProvider(create: (_) => CustomerProvider()),
-        ChangeNotifierProvider(create: (_) => BillingProvider()),
-        ChangeNotifierProvider(create: (_) => DashboardProvider()),
-      ],
-      child: Consumer<LocaleProvider>(
-        builder: (context, localeProvider, _) {
-          return MaterialApp(
-            title: 'Scan Kirana',
-            debugShowCheckedModeBanner: false,
-            theme: AppTheme.light,
-            home: const SplashScreen(),
-          );
-        },
-      ),
-    );
-  }
+  Widget build(BuildContext context) => MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (_) => LocaleProvider()),
+          ChangeNotifierProvider(create: (_) => AuthProvider()),
+          ChangeNotifierProvider(create: (_) => ProductProvider()),
+          ChangeNotifierProvider(create: (_) => CustomerProvider()),
+          ChangeNotifierProvider(create: (_) => BillingProvider()),
+          ChangeNotifierProvider(create: (_) => DashboardProvider()),
+        ],
+        child: MaterialApp(
+          title: 'ShopMint',
+          debugShowCheckedModeBanner: false,
+          theme: ThemeData(
+            useMaterial3: true,
+            scaffoldBackgroundColor: canvas,
+            colorScheme: ColorScheme.fromSeed(seedColor: mint, primary: teal),
+            fontFamily: 'Roboto',
+            appBarTheme: const AppBarTheme(
+              backgroundColor: Colors.white,
+              foregroundColor: ink,
+              elevation: 0,
+              centerTitle: false,
+            ),
+          ),
+          home: home ?? const ShopMintShell(),
+        ),
+      );
 }

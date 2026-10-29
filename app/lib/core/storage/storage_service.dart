@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../models/shop_mint_models.dart';
 
 class StorageService {
   static const _tokenKey = 'jwt_token';
@@ -7,6 +9,7 @@ class StorageService {
   static const _shopNameKey = 'shop_name';
   static const _userNameKey = 'user_name';
   static const _languageKey = 'app_language';
+  static const _productsCacheKey = 'shopmint_local_products_v1';
 
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
 
@@ -68,6 +71,24 @@ class StorageService {
   Future<String> getPreferredCamera() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_cameraFacingKey) ?? 'back';
+  }
+
+  Future<void> saveLocalProducts(List<ProductItem> products) async {
+    final prefs = await SharedPreferences.getInstance();
+    final jsonList = products.map((p) => p.toJson()).toList();
+    await prefs.setString(_productsCacheKey, jsonEncode(jsonList));
+  }
+
+  Future<List<ProductItem>?> loadLocalProducts() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_productsCacheKey);
+    if (raw == null || raw.isEmpty) return null;
+    try {
+      final List decoded = jsonDecode(raw) as List;
+      return decoded.map((e) => ProductItem.fromJson(Map<String, dynamic>.from(e as Map))).toList();
+    } catch (_) {
+      return null;
+    }
   }
 }
 

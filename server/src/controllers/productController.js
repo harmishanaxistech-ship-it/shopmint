@@ -42,11 +42,25 @@ exports.getProducts = async (req, res) => {
 exports.getProductByBarcode = async (req, res) => {
   try {
     const { barcode } = req.params;
-    const product = await Product.findOne({
+    const cleanBarcode = barcode.trim();
+    let product = await Product.findOne({
       shopId: req.shopId,
-      barcode: barcode.trim(),
+      barcode: cleanBarcode,
       active: true
     });
+
+    if (!product) {
+      // Global catalog lookup across all active products
+      product = await Product.findOne({
+        barcode: cleanBarcode,
+        active: true
+      });
+      if (product) {
+        return res.status(200).json({ success: true, product, isGlobalMatch: true });
+      }
+    } else {
+      return res.status(200).json({ success: true, product, isGlobalMatch: false });
+    }
 
     if (!product) {
       return res.status(404).json({
@@ -89,10 +103,14 @@ exports.createProduct = async (req, res) => {
         active: true
       });
       if (existing) {
-        return res.status(400).json({
-          code: 'DUPLICATE_BARCODE',
-          message: 'A product with this barcode already exists in your shop.'
-        });
+        existing.name = name.trim();
+        existing.sellingPrice = Number(sellingPrice);
+        if (purchasePrice !== undefined) existing.purchasePrice = Number(purchasePrice);
+        if (currentStock) existing.currentStock += Number(currentStock);
+        if (imageUrl) existing.imageUrl = imageUrl.trim();
+        if (unit) existing.unit = unit;
+        await existing.save();
+        return res.status(200).json({ success: true, product: existing });
       }
     }
 
@@ -234,4 +252,20 @@ exports.adjustStock = async (req, res) => {
     return res.status(500).json({ code: 'SERVER_ERROR', message: err.message });
   }
 };
+
+exports.deleteProduct = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const product = await Product.findOne({ _id: id, shopId: req.shopId });
+    if (!product) {
+      return res.status(404).json({ code: 'NOT_FOUND', message: 'Product not found' });
+    }
+    product.active = false;
+    await product.save();
+    return res.status(200).json({ success: true, message: 'Product deleted successfully' });
+  } catch (err) {
+    return res.status(500).json({ code: 'SERVER_ERROR', message: err.message });
+  }
+};
+
 

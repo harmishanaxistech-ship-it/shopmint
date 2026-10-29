@@ -2,152 +2,216 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../core/theme/app_colors.dart';
 
-/// Tactile 3D Button with glass gloss sheen and mechanical push-down interaction.
-class App3dButton extends StatefulWidget {
-  final VoidCallback? onPressed;
-  final String? label;
-  final Widget? child;
-  final IconData? icon;
-  final IconData? trailingIcon;
-  final double height;
-  final double? width;
-  final Color color;
-  final Color endColor;
-  final Color depthColor;
-  final Color textColor;
-  final double borderRadius;
-  final double depth;
-  final bool showGloss;
-  final bool isLoading;
-  final TextStyle? textStyle;
-  final EdgeInsetsGeometry? padding;
+// Brand colors for tactile buttons
+const _teal = Color(0xFF0F766E);
+const _darkTeal = Color(0xFF084B45);
+const _brightTeal = Color(0xFF17C3B2);
+const _mintTint = Color(0xFFE5F8F4);
+const _mintTintShadow = Color(0xFFBFEDE3);
+const _amber = Color(0xFFD97706);
+const _amberShadow = Color(0xFF9A5205);
 
-  const App3dButton({
+enum VanikButtonVariant {
+  green, // Primary ShopMint Teal Mint with gloss
+  beige, // Secondary Soft Mint Tint
+  amber, // Warm Accent
+}
+
+class Vanik3DButton extends StatefulWidget {
+  const Vanik3DButton({
     super.key,
-    this.onPressed,
-    this.label,
-    this.child,
+    required this.onPressed,
+    required this.label,
     this.icon,
-    this.trailingIcon,
-    this.height = 48.0,
+    this.variant = VanikButtonVariant.green,
+    this.height = 46,
     this.width,
-    this.color = const Color(0xFF17C3B2),
-    this.endColor = AppColors.primaryDark,
-    this.depthColor = const Color(0xFF084B45),
-    this.textColor = Colors.white,
-    this.borderRadius = 12.0,
-    this.depth = 4.5,
-    this.showGloss = true,
-    this.isLoading = false,
-    this.textStyle,
-    this.padding,
+    this.fontSize = 14,
+    this.textColor,
+    this.borderRadius = 12,
   });
 
-  /// Factory constructor for ShopMint Teal Mint theme (App brand colors)
+  final VoidCallback onPressed;
+  final String label;
+  final Widget? icon;
+  final VanikButtonVariant variant;
+  final double height;
+  final double? width;
+  final double fontSize;
+  final Color? textColor;
+  final double borderRadius;
+
+  @override
+  State<Vanik3DButton> createState() => _Vanik3DButtonState();
+}
+
+class _Vanik3DButtonState extends State<Vanik3DButton> {
+  bool _isPressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final (gradient, faceColor, shadowColor, borderColor, defaultTextColor) = switch (widget.variant) {
+      VanikButtonVariant.green => (
+        const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [_brightTeal, _teal],
+        ),
+        _teal,
+        _darkTeal,
+        const Color(0xFF084B45),
+        Colors.white,
+      ),
+      VanikButtonVariant.amber => (
+        const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFFF59E0B), _amber],
+        ),
+        _amber,
+        _amberShadow,
+        const Color(0xFF9A5205),
+        Colors.white,
+      ),
+      VanikButtonVariant.beige => (
+        null,
+        _mintTint,
+        _mintTintShadow,
+        const Color(0xFFCCEFE8),
+        _teal,
+      ),
+    };
+
+    final effectiveTextColor = widget.textColor ?? defaultTextColor;
+    const double bevelDepth = 3.5;
+    final double currentOffset = _isPressed ? bevelDepth : 0.0;
+
+    return GestureDetector(
+      onTapDown: (_) {
+        setState(() => _isPressed = true);
+        HapticFeedback.lightImpact();
+      },
+      onTapUp: (_) {
+        setState(() => _isPressed = false);
+        widget.onPressed();
+      },
+      onTapCancel: () => setState(() => _isPressed = false),
+      child: SizedBox(
+        width: widget.width,
+        height: widget.height,
+        child: Stack(
+          children: [
+            // Bottom 3D bevel / base layer
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              top: bevelDepth,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: shadowColor,
+                  borderRadius: BorderRadius.circular(widget.borderRadius),
+                ),
+              ),
+            ),
+            // Top face layer with gradient and gloss that depresses on tap
+            AnimatedPositioned(
+              duration: const Duration(milliseconds: 50),
+              curve: Curves.easeOut,
+              left: 0,
+              right: 0,
+              top: currentOffset,
+              bottom: bevelDepth - currentOffset,
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: gradient,
+                  color: gradient == null ? faceColor : null,
+                  borderRadius: BorderRadius.circular(widget.borderRadius),
+                  border: Border.all(color: borderColor, width: 1),
+                  boxShadow: const [
+                    BoxShadow(color: Color(0x10000000), blurRadius: 2, offset: Offset(0, 1)),
+                  ],
+                ),
+                child: Stack(
+                  children: [
+                    if (gradient != null)
+                      Positioned.fill(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(widget.borderRadius),
+                          child: CustomPaint(painter: _GlossPainter()),
+                        ),
+                      ),
+                    Center(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 6),
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (widget.icon != null) ...[
+                                widget.icon!,
+                                if (widget.label.isNotEmpty) const SizedBox(width: 8),
+                              ],
+                              if (widget.label.isNotEmpty)
+                                Text(
+                                  widget.label,
+                                  style: TextStyle(
+                                    fontSize: widget.fontSize,
+                                    fontWeight: FontWeight.w800,
+                                    color: effectiveTextColor,
+                                    letterSpacing: 0.3,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class App3dButton extends StatefulWidget {
+  const App3dButton({
+    super.key,
+    required this.label,
+    required this.onPressed,
+    this.height = 50,
+    this.icon,
+    this.isLoading = false,
+  });
+
+  final String label;
+  final VoidCallback? onPressed;
+  final double height;
+  final IconData? icon;
+  final bool isLoading;
+
   factory App3dButton.mint({
     Key? key,
-    VoidCallback? onPressed,
-    String? label,
-    Widget? child,
+    required String label,
+    required VoidCallback? onPressed,
+    double height = 50,
     IconData? icon,
     IconData? trailingIcon,
-    double height = 48.0,
-    double? width,
-    double borderRadius = 12.0,
-    double depth = 4.5,
     bool isLoading = false,
-    TextStyle? textStyle,
   }) {
     return App3dButton(
       key: key,
-      onPressed: onPressed,
       label: label,
-      icon: icon,
-      trailingIcon: trailingIcon,
-      height: height,
-      width: width,
-      color: const Color(0xFF17C3B2),
-      endColor: AppColors.primaryDark,
-      depthColor: const Color(0xFF084B45),
-      textColor: Colors.white,
-      borderRadius: borderRadius,
-      depth: depth,
-      showGloss: true,
-      isLoading: isLoading,
-      textStyle: textStyle,
-      child: child,
-    );
-  }
-
-  /// Factory constructor for ShopMint bright Teal theme
-  factory App3dButton.teal({
-    Key? key,
-    VoidCallback? onPressed,
-    String? label,
-    Widget? child,
-    IconData? icon,
-    IconData? trailingIcon,
-    double height = 48.0,
-    double? width,
-    double borderRadius = 12.0,
-    double depth = 4.5,
-    bool isLoading = false,
-    TextStyle? textStyle,
-  }) {
-    return App3dButton(
-      key: key,
       onPressed: onPressed,
-      label: label,
-      icon: icon,
-      trailingIcon: trailingIcon,
       height: height,
-      width: width,
-      color: const Color(0xFF2DD4BF),
-      endColor: AppColors.primary,
-      depthColor: AppColors.primaryDark,
-      textColor: Colors.white,
-      borderRadius: borderRadius,
-      depth: depth,
-      showGloss: true,
+      icon: icon ?? trailingIcon,
       isLoading: isLoading,
-      textStyle: textStyle,
-      child: child,
-    );
-  }
-
-  /// Factory constructor for Deep Teal contrast
-  factory App3dButton.darkTeal({
-    Key? key,
-    VoidCallback? onPressed,
-    String? label,
-    Widget? child,
-    IconData? icon,
-    IconData? trailingIcon,
-    double height = 48.0,
-    double? width,
-    double borderRadius = 12.0,
-    double depth = 4.5,
-    bool isLoading = false,
-    TextStyle? textStyle,
-  }) {
-    return App3dButton(
-      key: key,
-      onPressed: onPressed,
-      label: label,
-      icon: icon,
-      trailingIcon: trailingIcon,
-      height: height,
-      width: width,
-      color: AppColors.primary,
-      endColor: AppColors.primaryDark,
-      depthColor: const Color(0xFF05332F),
-      textColor: Colors.white,
-      borderRadius: borderRadius,
-      depth: depth,
-      showGloss: true,
-      isLoading: isLoading,
-      textStyle: textStyle,
-      child: child,
     );
   }
 
@@ -156,124 +220,100 @@ class App3dButton extends StatefulWidget {
 }
 
 class _App3dButtonState extends State<App3dButton> {
-  bool _isPressed = false;
-
-  void _onTapDown(TapDownDetails details) {
-    if (widget.onPressed == null || widget.isLoading) return;
-    setState(() => _isPressed = true);
-    HapticFeedback.lightImpact();
-  }
-
-  void _onTapUp(TapUpDetails details) {
-    if (widget.onPressed == null || widget.isLoading) return;
-    setState(() => _isPressed = false);
-    widget.onPressed?.call();
-  }
-
-  void _onTapCancel() {
-    if (_isPressed) {
-      setState(() => _isPressed = false);
-    }
-  }
+  bool pressed = false;
 
   @override
   Widget build(BuildContext context) {
     final bool isEnabled = widget.onPressed != null && !widget.isLoading;
-    final double depth = widget.depth;
-    final double topOffset = _isPressed ? depth - 1.0 : 0.0;
-    final double bottomMargin = _isPressed ? 1.0 : depth;
 
-    final Color faceColor = isEnabled ? widget.color : const Color(0xFF9CA3AF);
-    final Color endFaceColor = isEnabled ? widget.endColor : const Color(0xFF6B7280);
-    final Color baseDepthColor = isEnabled ? widget.depthColor : const Color(0xFF4B5563);
-
-    return SizedBox(
-      height: widget.height,
-      width: widget.width,
-      child: GestureDetector(
-        onTapDown: isEnabled ? _onTapDown : null,
-        onTapUp: isEnabled ? _onTapUp : null,
-        onTapCancel: isEnabled ? _onTapCancel : null,
-        behavior: HitTestBehavior.opaque,
-        child: Container(
+    return GestureDetector(
+      onTapDown: (_) {
+        if (isEnabled) {
+          setState(() => pressed = true);
+          HapticFeedback.lightImpact();
+        }
+      },
+      onTapCancel: () {
+        if (pressed) setState(() => pressed = false);
+      },
+      onTapUp: (_) {
+        if (isEnabled) {
+          setState(() => pressed = false);
+          widget.onPressed!();
+        }
+      },
+      child: Container(
+        height: widget.height + 4,
+        decoration: BoxDecoration(
+          color: isEnabled ? AppColors.deepTeal : const Color(0xFF4B5563),
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x1C000000),
+              blurRadius: 4,
+              offset: Offset(0, 3),
+            ),
+          ],
+        ),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 90),
+          transform: Matrix4.translationValues(0, pressed ? 3 : 0, 0),
+          margin: EdgeInsets.only(bottom: pressed ? 1 : 4),
           decoration: BoxDecoration(
-            color: baseDepthColor,
-            borderRadius: BorderRadius.circular(widget.borderRadius),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withAlpha(28),
-                offset: const Offset(0, 3),
-                blurRadius: 4,
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: isEnabled
+                  ? [AppColors.brightTeal, AppColors.teal]
+                  : [const Color(0xFF9CA3AF), const Color(0xFF6B7280)],
+            ),
+            borderRadius: BorderRadius.circular(11),
+          ),
+          child: Stack(
+            children: [
+              if (isEnabled)
+                Positioned.fill(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(11),
+                    child: CustomPaint(painter: _GlossPainter()),
+                  ),
+                ),
+              Center(
+                child: widget.isLoading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (widget.icon != null) ...[
+                            Icon(widget.icon, color: Colors.white, size: 19),
+                            const SizedBox(width: 8),
+                          ],
+                          Flexible(
+                            child: Text(
+                              widget.label,
+                              textAlign: TextAlign.center,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: .45,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
               ),
             ],
-          ),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 50),
-            margin: EdgeInsets.only(top: topOffset, bottom: bottomMargin),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [faceColor, endFaceColor],
-              ),
-              borderRadius: BorderRadius.circular(widget.borderRadius),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(widget.borderRadius),
-              child: Stack(
-                children: [
-                  // Specular gloss reflection overlay (as seen in reference image)
-                  if (widget.showGloss && isEnabled)
-                    Positioned.fill(
-                      child: CustomPaint(
-                        painter: _GlossSheenPainter(),
-                      ),
-                    ),
-
-                  // Button content (Text, Icons, or custom child)
-                  Center(
-                    child: Padding(
-                      padding: widget.padding ?? const EdgeInsets.symmetric(horizontal: 14),
-                      child: widget.isLoading
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.2,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                              ),
-                            )
-                          : widget.child ??
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  if (widget.icon != null) ...[
-                                    Icon(widget.icon, color: widget.textColor, size: 20),
-                                    const SizedBox(width: 8),
-                                  ],
-                                  Text(
-                                    widget.label ?? '',
-                                    style: widget.textStyle ??
-                                        TextStyle(
-                                          color: widget.textColor,
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.w800,
-                                          letterSpacing: 0.6,
-                                        ),
-                                  ),
-                                  if (widget.trailingIcon != null) ...[
-                                    const SizedBox(width: 8),
-                                    Icon(widget.trailingIcon, color: widget.textColor, size: 20),
-                                  ],
-                                ],
-                              ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
           ),
         ),
       ),
@@ -281,38 +321,24 @@ class _App3dButtonState extends State<App3dButton> {
   }
 }
 
-/// Custom painter that renders the sleek curved glass gloss reflection
-class _GlossSheenPainter extends CustomPainter {
+class _GlossPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    if (size.width <= 0 || size.height <= 0) return;
-
-    final paint = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [
-          Colors.white.withAlpha(95),
-          Colors.white.withAlpha(18),
-        ],
-      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height * 0.65))
-      ..style = PaintingStyle.fill;
-
-    final path = Path();
-    path.moveTo(0, 0);
-    path.lineTo(size.width, 0);
-    // Gloss right endpoint
-    path.lineTo(size.width, size.height * 0.42);
-    // Gentle curved arch across the middle
-    path.quadraticBezierTo(
-      size.width * 0.48,
-      size.height * 0.70,
-      0,
-      size.height * 0.52,
+    final path = Path()
+      ..moveTo(0, 0)
+      ..lineTo(size.width, 0)
+      ..lineTo(size.width, size.height * .42)
+      ..quadraticBezierTo(size.width * .5, size.height * .68, 0, size.height * .3)
+      ..close();
+    canvas.drawPath(
+      path,
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0x5FFFFFFF), Color(0x12FFFFFF)],
+        ).createShader(Offset.zero & size),
     );
-    path.close();
-
-    canvas.drawPath(path, paint);
   }
 
   @override

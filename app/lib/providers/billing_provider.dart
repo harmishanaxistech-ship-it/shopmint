@@ -162,7 +162,7 @@ class BillingProvider extends ChangeNotifier {
       return null;
     }
 
-    if (balanceDue > 0 && _selectedCustomer == null) {
+    if (balanceDue > 0 && (_selectedCustomer == null || (_selectedCustomer!.id.isEmpty && _selectedCustomer!.name.isEmpty))) {
       _errorMessage = 'Customer is required for credit balance';
       notifyListeners();
       return null;
@@ -174,8 +174,9 @@ class BillingProvider extends ChangeNotifier {
 
     try {
       final payload = {
-        if (_selectedCustomer != null) 'customerId': _selectedCustomer!.id,
+        if (_selectedCustomer != null && _selectedCustomer!.id.isNotEmpty) 'customerId': _selectedCustomer!.id,
         'customerName': _selectedCustomer?.name ?? 'Walk-in Customer',
+        if (_selectedCustomer != null && _selectedCustomer!.mobile.isNotEmpty) 'customerPhone': _selectedCustomer!.mobile,
         'items': _items.map((i) {
           return {
             if (i.product != null) 'productId': i.product!.id,
@@ -202,7 +203,8 @@ class BillingProvider extends ChangeNotifier {
         return bill;
       }
     } on DioException catch (e) {
-      _errorMessage = e.response?.data?['message'] ?? 'Failed to save bill';
+      final data = e.response?.data;
+      _errorMessage = (data is Map ? data['message'] : null)?.toString() ?? 'Failed to save bill';
     } catch (_) {
       _errorMessage = 'Failed to save bill. Please check connection.';
     }

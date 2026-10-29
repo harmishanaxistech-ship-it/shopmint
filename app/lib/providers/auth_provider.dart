@@ -42,14 +42,54 @@ class AuthProvider extends ChangeNotifier {
         notifyListeners();
         return true;
       }
-    } catch (_) {
-      await _storage.clearAuth();
-    }
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 401 || e.response?.statusCode == 403) {
+        await _storage.clearAuth();
+      } else {
+        final shopName = await _storage.getShopName();
+        final userName = await _storage.getUserName();
+        final role = await _storage.getUserRole();
+        if (shopName != null && userName != null) {
+          _currentUser = UserModel(
+            id: 'cached_user',
+            name: userName,
+            shopName: shopName,
+            mobile: '',
+            role: role ?? 'owner',
+            language: 'en',
+          );
+          _isLoading = false;
+          notifyListeners();
+          return true;
+        }
+      }
+    } catch (_) {}
 
     _currentUser = null;
     _isLoading = false;
     notifyListeners();
     return false;
+  }
+
+  Future<bool> loginAsDemo() async {
+    final success = await login('9876543210', '1234');
+    if (success) return true;
+
+    await _storage.saveUserMeta(
+      role: 'owner',
+      shopName: 'Ramesh Kirana',
+      userName: 'Ramesh Patel',
+    );
+    _currentUser = UserModel(
+      id: 'demo_user',
+      name: 'Ramesh Patel',
+      shopName: 'Ramesh Kirana',
+      mobile: '9876543210',
+      role: 'owner',
+      language: 'en',
+    );
+    notifyListeners();
+    return true;
   }
 
   Future<bool> login(String mobile, String pin) async {
@@ -79,7 +119,8 @@ class AuthProvider extends ChangeNotifier {
         return true;
       }
     } on DioException catch (e) {
-      _errorMessage = e.response?.data?['message'] ?? 'Login failed. Please check credentials.';
+      final data = e.response?.data;
+      _errorMessage = (data is Map ? data['message'] : null)?.toString() ?? 'Login failed. Please check credentials.';
     } catch (_) {
       _errorMessage = 'Could not connect to server. Please try again.';
     }
@@ -128,7 +169,8 @@ class AuthProvider extends ChangeNotifier {
         return true;
       }
     } on DioException catch (e) {
-      _errorMessage = e.response?.data?['message'] ?? 'Registration failed.';
+      final data = e.response?.data;
+      _errorMessage = (data is Map ? data['message'] : null)?.toString() ?? 'Registration failed.';
     } catch (_) {
       _errorMessage = 'Could not connect to server. Please try again.';
     }

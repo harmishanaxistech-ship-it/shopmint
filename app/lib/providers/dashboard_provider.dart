@@ -86,7 +86,8 @@ class DashboardProvider extends ChangeNotifier {
         _summary = DashboardSummary.fromJson(response.data['summary']);
       }
     } on DioException catch (e) {
-      _errorMessage = e.response?.data?['message'] ?? 'Failed to load dashboard';
+      final data = e.response?.data;
+      _errorMessage = (data is Map ? data['message'] : null)?.toString() ?? 'Failed to load dashboard';
     } catch (_) {
       _errorMessage = 'Could not connect to server.';
     }

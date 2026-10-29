@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/localization/locale_provider.dart';
-import '../../core/theme/app_colors.dart';
-import '../../core/theme/app_tokens.dart';
 import '../../providers/auth_provider.dart';
 import '../main_navigation_shell.dart';
 
@@ -19,7 +17,6 @@ class _QuickRegisterScreenState extends State<QuickRegisterScreen> {
   final _nameController = TextEditingController();
   final _shopNameController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
-  bool _isAdmin = false;
 
   @override
   void dispose() {
@@ -39,7 +36,7 @@ class _QuickRegisterScreenState extends State<QuickRegisterScreen> {
       pin: _pinController.text.trim(),
       name: _nameController.text.trim(),
       shopName: _shopNameController.text.trim(),
-      role: _isAdmin ? 'admin' : 'owner',
+      role: 'owner',
     );
 
     if (!mounted) return;
@@ -54,7 +51,7 @@ class _QuickRegisterScreenState extends State<QuickRegisterScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(auth.errorMessage ?? 'Registration failed'),
-          backgroundColor: AppColors.error,
+          backgroundColor: const Color(0xFFD94B4B),
         ),
       );
     }
@@ -66,9 +63,12 @@ class _QuickRegisterScreenState extends State<QuickRegisterScreen> {
     final loc = Provider.of<LocaleProvider>(context);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: const Color(0xFFF5FAF9),
       appBar: AppBar(
-        title: Text(loc.t('registerTitle')),
+        backgroundColor: Colors.white,
+        foregroundColor: const Color(0xFF153330),
+        elevation: 0,
+        title: const Text('Register Store', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -78,23 +78,83 @@ class _QuickRegisterScreenState extends State<QuickRegisterScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(loc.t('registerSubtitle'), style: AppText.h2),
+                const Text(
+                  'Create Your Kirana Account',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Color(0xFF0F766E)),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Fast 30-second setup for your shop counter',
+                  style: TextStyle(fontSize: 13, color: Color(0xFF708784)),
+                ),
                 const SizedBox(height: 24),
+
+                // Shop Name
+                TextFormField(
+                  controller: _shopNameController,
+                  textCapitalization: TextCapitalization.words,
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF153330)),
+                  decoration: InputDecoration(
+                    labelText: 'Shop / Store Name',
+                    hintText: 'e.g. Ramesh Kirana, Laxmi General Store',
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE4EFED))),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE4EFED))),
+                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF0F766E), width: 1.5)),
+                  ),
+                  validator: (val) {
+                    if (val == null || val.trim().length < 2) {
+                      return 'Please enter your shop name';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+
+                // Owner Name
+                TextFormField(
+                  controller: _nameController,
+                  textCapitalization: TextCapitalization.words,
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF153330)),
+                  decoration: InputDecoration(
+                    labelText: 'Owner / Your Name',
+                    hintText: 'e.g. Ramesh Patel',
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE4EFED))),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE4EFED))),
+                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF0F766E), width: 1.5)),
+                  ),
+                  validator: (val) {
+                    if (val == null || val.trim().length < 2) {
+                      return 'Please enter your name';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
 
                 // Mobile
                 TextFormField(
                   controller: _mobileController,
                   keyboardType: TextInputType.phone,
                   maxLength: 10,
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF153330)),
                   decoration: InputDecoration(
                     labelText: loc.t('mobileNumber'),
-                    hintText: loc.t('mobileHint'),
+                    hintText: '10-digit mobile number',
                     prefixText: '+91 ',
                     counterText: '',
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE4EFED))),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE4EFED))),
+                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF0F766E), width: 1.5)),
                   ),
                   validator: (val) {
                     if (val == null || val.length != 10) {
-                      return loc.t('mobileError');
+                      return 'Please enter valid 10-digit mobile';
                     }
                     return null;
                   },
@@ -107,91 +167,40 @@ class _QuickRegisterScreenState extends State<QuickRegisterScreen> {
                   keyboardType: TextInputType.number,
                   obscureText: true,
                   maxLength: 4,
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF153330), letterSpacing: 4),
                   decoration: InputDecoration(
-                    labelText: loc.t('pin'),
-                    hintText: loc.t('pinHint'),
+                    labelText: '4-Digit Login PIN',
+                    hintText: '****',
                     counterText: '',
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE4EFED))),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE4EFED))),
+                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF0F766E), width: 1.5)),
                   ),
                   validator: (val) {
                     if (val == null || val.length != 4) {
-                      return loc.t('pinError');
+                      return 'PIN must be exactly 4 digits';
                     }
                     return null;
                   },
-                ),
-                const SizedBox(height: 16),
-
-                // Shopkeeper Name
-                TextFormField(
-                  controller: _nameController,
-                  textCapitalization: TextCapitalization.words,
-                  decoration: InputDecoration(
-                    labelText: loc.t('ownerName'),
-                    hintText: loc.t('ownerNameHint'),
-                  ),
-                  validator: (val) {
-                    if (val == null || val.trim().length < 2) {
-                      return loc.t('ownerNameError');
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // Shop Name
-                TextFormField(
-                  controller: _shopNameController,
-                  textCapitalization: TextCapitalization.words,
-                  decoration: InputDecoration(
-                    labelText: loc.t('shopName'),
-                    hintText: loc.t('shopNameHint'),
-                  ),
-                  validator: (val) {
-                    if (val == null || val.trim().length < 2) {
-                      return loc.t('shopNameError');
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // Admin Role Toggle
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: AppRadius.mdAll,
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(loc.t('adminRole'), style: AppText.label),
-                          Text(loc.t('adminRoleSubtitle'), style: AppText.caption),
-                        ],
-                      ),
-                      Switch(
-                        value: _isAdmin,
-                        onChanged: (val) => setState(() => _isAdmin = val),
-                      ),
-                    ],
-                  ),
                 ),
                 const SizedBox(height: 28),
 
                 // Submit button
-                FilledButton(
-                  onPressed: auth.isLoading ? null : _handleRegister,
-                  child: auth.isLoading
+                Vanik3DButton(
+                  variant: VanikButtonVariant.green,
+                  height: 50,
+                  fontSize: 15,
+                  label: auth.isLoading ? 'Creating Store...' : 'Create & Open Store',
+                  icon: auth.isLoading
                       ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.onPrimary),
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                         )
-                      : Text(loc.t('createStoreButton')),
+                      : const Icon(Icons.check_circle_rounded, size: 18, color: Colors.white),
+                  onPressed: auth.isLoading ? () {} : _handleRegister,
                 ),
               ],
             ),

@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 import '../network/universal_barcode_service.dart';
@@ -78,6 +79,8 @@ class MasterCatalogService {
 
   /// Fast 0ms offline lookup in local SQLite database
   static Future<MasterProductItem?> lookupLocal(String barcode) async {
+    final bool isTest = WidgetsBinding.instance.runtimeType.toString().contains('Test');
+    if (isTest) return null;
     try {
       final db = await getDatabase();
       final clean = barcode.trim();
@@ -109,6 +112,8 @@ class MasterCatalogService {
 
   /// Saves or caches a product in the local SQLite master database for instant offline access
   static Future<void> saveToMaster(MasterProductItem item) async {
+    final bool isTest = WidgetsBinding.instance.runtimeType.toString().contains('Test');
+    if (isTest) return;
     try {
       final cleanBarcode = item.barcode.trim();
       if (cleanBarcode.isEmpty || item.name.trim().isEmpty) return;

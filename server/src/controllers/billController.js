@@ -103,10 +103,25 @@ exports.createBill = async (req, res) => {
     const balanceDue = Math.max(0, grandTotal - received);
 
     if (balanceDue > 0 && !customerId) {
-      return res.status(400).json({
-        code: 'CUSTOMER_REQUIRED',
-        message: 'Customer is required when there is pending credit balance.'
-      });
+      const cName = (customerName && customerName.trim()) ? customerName.trim() : 'Customer';
+      const cPhone = (req.body.customerPhone && req.body.customerPhone.trim()) ? req.body.customerPhone.trim() : '';
+
+      let foundCustomer = null;
+      if (cPhone) {
+        foundCustomer = await Customer.findOne({ shopId: req.shopId, mobile: cPhone, active: true });
+      }
+      if (!foundCustomer && cName !== 'Customer' && cName !== 'Walk-in Customer') {
+        foundCustomer = await Customer.findOne({ shopId: req.shopId, name: cName, active: true });
+      }
+      if (!foundCustomer) {
+        foundCustomer = await Customer.create({
+          shopId: req.shopId,
+          name: cName,
+          mobile: cPhone,
+          balance: 0
+        });
+      }
+      customerId = foundCustomer._id;
     }
 
     const billNo = await generateBillNumber(req.shopId);

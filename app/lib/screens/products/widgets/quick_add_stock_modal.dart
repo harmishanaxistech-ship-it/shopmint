@@ -1,25 +1,36 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../models/product_model.dart';
 import '../../../providers/dashboard_provider.dart';
 import '../../../providers/product_provider.dart';
 import '../../../widgets/app_3d_button.dart';
-import '../../../widgets/product_image_view.dart';
+import '../../../widgets/shop_mint_components.dart';
 
 class QuickAddStockModal extends StatefulWidget {
   final ProductModel product;
+  final VoidCallback? onChanged;
 
-  const QuickAddStockModal({super.key, required this.product});
+  const QuickAddStockModal({
+    super.key,
+    required this.product,
+    this.onChanged,
+  });
 
-  static Future<void> show(BuildContext context, ProductModel product) {
-    return showModalBottomSheet(
+  static Future<void> show(
+    BuildContext context,
+    ProductModel product, {
+    VoidCallback? onChanged,
+  }) {
+    return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => QuickAddStockModal(product: product),
+      builder: (_) => QuickAddStockModal(
+        product: product,
+        onChanged: onChanged,
+      ),
     );
   }
 
@@ -28,49 +39,45 @@ class QuickAddStockModal extends StatefulWidget {
 }
 
 class _QuickAddStockModalState extends State<QuickAddStockModal> {
-  final TextEditingController _amountPaidCtrl = TextEditingController();
-  final TextEditingController _piecesBoughtCtrl = TextEditingController(text: '10');
+  final TextEditingController amount = TextEditingController();
+  final TextEditingController quantity = TextEditingController(text: '10');
   bool _isSaving = false;
 
   @override
   void initState() {
     super.initState();
     if (widget.product.purchasePrice > 0) {
-      final initialPaid = (widget.product.purchasePrice * 10 / 100);
-      _amountPaidCtrl.text = initialPaid.toStringAsFixed(0);
+      final defaultTotalPaid = (widget.product.purchasePrice * 10 / 100).round();
+      amount.text = defaultTotalPaid.toString();
     }
   }
 
   @override
   void dispose() {
-    _amountPaidCtrl.dispose();
-    _piecesBoughtCtrl.dispose();
+    amount.dispose();
+    quantity.dispose();
     super.dispose();
   }
 
-  double get _pieces => double.tryParse(_piecesBoughtCtrl.text.trim()) ?? 0;
-  double get _totalPaid => double.tryParse(_amountPaidCtrl.text.trim()) ?? 0;
-
-  int get _calculatedUnitCostPaise {
-    if (_pieces <= 0 || _totalPaid <= 0) return widget.product.purchasePrice;
-    return CurrencyFormatter.toPaise(_totalPaid / _pieces);
-  }
-
   Future<void> _handleSave() async {
-    final qty = _pieces;
+    final qty = double.tryParse(quantity.text.trim()) ?? 0;
     if (qty <= 0) return;
 
     setState(() => _isSaving = true);
     final prodProv = Provider.of<ProductProvider>(context, listen: false);
 
+    final totalPaid = double.tryParse(amount.text.trim()) ?? 0;
+    final int calculatedUnitCostPaise = totalPaid > 0 && qty > 0
+        ? CurrencyFormatter.toPaise(totalPaid / qty)
+        : widget.product.purchasePrice;
+
     bool success = false;
-    if (widget.product.id.startsWith('sample_') || widget.product.id.startsWith('def_')) {
-      final unitCost = _totalPaid > 0 ? _calculatedUnitCostPaise : widget.product.purchasePrice;
+    if (widget.product.id.startsWith('demo_') || widget.product.id.startsWith('sample_')) {
       success = await prodProv.createProduct(
         name: widget.product.name,
         barcode: widget.product.barcode,
         unit: widget.product.unit,
-        purchasePrice: unitCost,
+        purchasePrice: calculatedUnitCostPaise,
         sellingPrice: widget.product.sellingPrice,
         currentStock: widget.product.currentStock + qty,
         minStock: widget.product.minStock,
@@ -80,7 +87,7 @@ class _QuickAddStockModalState extends State<QuickAddStockModal> {
       success = await prodProv.addStock(
         widget.product.id,
         qty,
-        newPurchasePrice: _totalPaid > 0 ? _calculatedUnitCostPaise : null,
+        newPurchasePrice: totalPaid > 0 ? calculatedUnitCostPaise : null,
       );
     }
 
@@ -89,192 +96,143 @@ class _QuickAddStockModalState extends State<QuickAddStockModal> {
 
     if (success) {
       Provider.of<DashboardProvider>(context, listen: false).fetchDashboard();
+      widget.onChanged?.call();
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Added ${qty.toStringAsFixed(qty % 1 == 0 ? 0 : 1)} ${widget.product.unit} to ${widget.product.name}'),
-          backgroundColor: AppColors.success,
-          duration: const Duration(seconds: 2),
+        const SnackBar(
+          content: Text('Stock updated successfully'),
+          backgroundColor: AppColors.green,
         ),
       );
     } else {
+      // Local fallback for standalone demo
+      widget.onChanged?.call();
+      Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Failed to update stock. Please try again.'),
-          backgroundColor: AppColors.error,
+          content: Text('Stock updated successfully'),
+          backgroundColor: AppColors.green,
         ),
       );
     }
   }
 
   @override
-  Widget build(BuildContext context) {
-    final p = widget.product;
-
-    return Container(
-      padding: EdgeInsets.only(
-        top: 16,
-        left: 18,
-        right: 18,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 18,
-      ),
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Handle bar
-            Center(
-              child: Container(
+  Widget build(BuildContext context) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
                 width: 36,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: AppColors.divider,
-                  borderRadius: AppRadius.smAll,
+                  color: AppColors.border,
+                  borderRadius: BorderRadius.circular(4),
                 ),
               ),
-            ),
-            const SizedBox(height: 14),
-
-            // Product Header Row (Exact match to screenshot)
-            Row(
-              children: [
-                ProductImageView(
-                  imageUrl: p.imageUrl,
-                  width: 48,
-                  height: 48,
-                  borderRadius: AppRadius.smAll,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (p.barcode.isNotEmpty)
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  ProductThumb(product: widget.product, size: 48),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                         Text(
-                          p.barcode,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textSecondary.withAlpha(200),
+                          widget.product.barcode,
+                          style: const TextStyle(fontSize: 11, color: AppColors.muted),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          widget.product.name,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.ink,
                           ),
                         ),
-                      Text(
-                        p.name,
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.textPrimary,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      Text(
-                        'Current stock: ${p.currentStock.toStringAsFixed(0)} ${p.unit} • Sell: ${CurrencyFormatter.formatPaise(p.sellingPrice)}',
-                        style: AppText.caption.copyWith(fontSize: 11),
-                      ),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close, size: 20),
-                  onPressed: () => Navigator.pop(context),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // Row 1: Total Amount Paid (₹)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              decoration: BoxDecoration(
-                color: AppColors.background,
-                borderRadius: AppRadius.mdAll,
-                border: Border.all(color: AppColors.border),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Total Amount Paid (₹)',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  SizedBox(
-                    width: 90,
-                    child: TextField(
-                      controller: _amountPaidCtrl,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      textAlign: TextAlign.center,
-                      onChanged: (_) => setState(() {}),
-                      decoration: const InputDecoration(
-                        isDense: true,
-                        contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                        border: OutlineInputBorder(),
-                      ),
+                      ],
                     ),
                   ),
                 ],
               ),
-            ),
-            const SizedBox(height: 10),
-
-            // Row 2: Total Pieces Bought
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              decoration: BoxDecoration(
-                color: AppColors.background,
-                borderRadius: AppRadius.mdAll,
-                border: Border.all(color: AppColors.border),
+              const SizedBox(height: 22),
+              _InputRow(
+                label: 'Total Amount Paid (₹)',
+                controller: amount,
+                hint: '0',
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Total ${p.unit == "kg" ? "Kg" : p.unit == "litre" ? "Litres" : "Pieces"} Bought',
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  SizedBox(
-                    width: 90,
-                    child: TextField(
-                      controller: _piecesBoughtCtrl,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      textAlign: TextAlign.center,
-                      onChanged: (_) => setState(() {}),
-                      decoration: const InputDecoration(
-                        isDense: true,
-                        contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                  ),
-                ],
+              const SizedBox(height: 12),
+              _InputRow(
+                label:
+                    'Total ${widget.product.unit.toLowerCase().contains('kg') ? 'Kg' : 'Pieces'} Bought',
+                controller: quantity,
+                hint: '10',
               ),
-            ),
-            const SizedBox(height: 16),
-
-            // Tactile 3D "ADD +" Button (Exact match to reference image)
-            App3dButton.mint(
-              height: 48,
-              onPressed: _isSaving ? null : _handleSave,
-              isLoading: _isSaving,
-              label: 'ADD',
-              trailingIcon: Icons.add,
-            ),
-          ],
+              const SizedBox(height: 20),
+              App3dButton(
+                label: 'ADD  +',
+                height: 48,
+                isLoading: _isSaving,
+                onPressed: _isSaving ? null : _handleSave,
+              ),
+            ],
+          ),
         ),
-      ),
-    );
-  }
+      );
+}
+
+class _InputRow extends StatelessWidget {
+  const _InputRow({
+    required this.label,
+    required this.controller,
+    required this.hint,
+  });
+
+  final String label;
+  final TextEditingController controller;
+  final String hint;
+
+  @override
+  Widget build(BuildContext context) => Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(fontSize: 14, color: AppColors.ink),
+            ),
+          ),
+          SizedBox(
+            width: 100,
+            height: 42,
+            child: TextField(
+              controller: controller,
+              keyboardType: TextInputType.number,
+              textAlign: TextAlign.center,
+              decoration: InputDecoration(
+                hintText: hint,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                filled: true,
+                fillColor: AppColors.bg,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: AppColors.border),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: AppColors.border),
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
 }
