@@ -266,15 +266,28 @@ class _CustomerLedgerScreenState extends State<CustomerLedgerScreen> {
 
           // Entries List
           Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _entries.isEmpty
-                    ? Center(child: Text(loc.t('noTransactions'), style: AppText.caption))
-                    : ListView.separated(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        itemCount: _entries.length,
-                        separatorBuilder: (_, index) => const SizedBox(height: 8),
-                        itemBuilder: (ctx, idx) {
+            child: RefreshIndicator(
+              color: AppColors.teal,
+              backgroundColor: Colors.white,
+              onRefresh: _loadLedger,
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _entries.isEmpty
+                      ? LayoutBuilder(
+                          builder: (context, constraints) => SingleChildScrollView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            child: ConstrainedBox(
+                              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                              child: Center(child: Text(loc.t('noTransactions'), style: AppText.caption)),
+                            ),
+                          ),
+                        )
+                      : ListView.separated(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          itemCount: _entries.length,
+                          separatorBuilder: (_, index) => const SizedBox(height: 8),
+                          itemBuilder: (ctx, idx) {
                           final e = _entries[idx];
                           final isCredit = e.isCredit;
 
@@ -319,6 +332,7 @@ class _CustomerLedgerScreenState extends State<CustomerLedgerScreen> {
                           );
                         },
                       ),
+            ),
           ),
         ],
       ),

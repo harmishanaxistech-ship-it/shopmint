@@ -3,6 +3,16 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:app/main.dart';
+import 'package:app/models/shop_mint_models.dart';
+import 'test_fixtures.dart';
+
+Widget _buildFlowTestApp({List<ProductItem>? products, List<OrderRecord>? orders}) {
+  final prods = products ?? testProducts;
+  return ShopMintApp(
+    initialProducts: prods,
+    initialOrders: orders ?? createTestOrders(prods),
+  );
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -60,7 +70,7 @@ void main() {
     });
 
     testWidgets('3. Complete billing flow: add item via chip, checkout with Cash', (tester) async {
-      await tester.pumpWidget(const ShopMintApp());
+      await tester.pumpWidget(_buildFlowTestApp());
       await tester.pumpAndSettle();
 
       // Navigate to Make Bill
@@ -99,7 +109,7 @@ void main() {
     });
 
     testWidgets('4. Udhaar billing flow: add item, select Udhaar, save customer details', (tester) async {
-      await tester.pumpWidget(const ShopMintApp());
+      await tester.pumpWidget(_buildFlowTestApp());
       await tester.pumpAndSettle();
 
       // Navigate to Make Bill
@@ -146,7 +156,7 @@ void main() {
     });
 
     testWidgets('5. Loose item addition flow', (tester) async {
-      await tester.pumpWidget(const ShopMintApp());
+      await tester.pumpWidget(_buildFlowTestApp());
       await tester.pumpAndSettle();
 
       // Navigate to Make Bill
@@ -171,7 +181,7 @@ void main() {
     });
 
     testWidgets('6. My Shop stock replenishment via modal', (tester) async {
-      await tester.pumpWidget(const ShopMintApp());
+      await tester.pumpWidget(_buildFlowTestApp());
       await tester.pumpAndSettle();
 
       // On My Shop tab, tap Stock barcode items button
@@ -192,7 +202,7 @@ void main() {
     });
 
     testWidgets('7. My Sales Udhaar mark paid action', (tester) async {
-      await tester.pumpWidget(const ShopMintApp());
+      await tester.pumpWidget(_buildFlowTestApp());
       await tester.pumpAndSettle();
 
       // Navigate to My Sales
@@ -214,7 +224,7 @@ void main() {
     });
 
     testWidgets('8. Duplicate scan prevention and inline stepper flow', (tester) async {
-      await tester.pumpWidget(const ShopMintApp());
+      await tester.pumpWidget(_buildFlowTestApp());
       await tester.pumpAndSettle();
 
       // Navigate to Make Bill

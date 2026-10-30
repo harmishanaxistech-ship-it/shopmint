@@ -55,6 +55,7 @@ class BillModel {
   final String billNo;
   final String? customerId;
   final String customerName;
+  final String? customerPhone;
   final List<BillItemModel> items;
   final int subtotal;
   final int billDiscount;
@@ -72,6 +73,7 @@ class BillModel {
     required this.billNo,
     this.customerId,
     this.customerName = 'Walk-in Customer',
+    this.customerPhone,
     required this.items,
     required this.subtotal,
     this.billDiscount = 0,
@@ -86,6 +88,7 @@ class BillModel {
   });
 
   bool get isCancelled => status == 'cancelled';
+  int get totalProfit => items.fold(0, (sum, it) => sum + ((it.rate - it.purchasePrice) * it.qty).round());
 
   factory BillModel.fromJson(Map<String, dynamic> json) {
     var rawItems = json['items'] as List? ?? [];
@@ -96,6 +99,7 @@ class BillModel {
       billNo: json['billNo'] ?? '',
       customerId: json['customerId'],
       customerName: json['customerName'] ?? 'Walk-in Customer',
+      customerPhone: json['customerPhone'] as String?,
       items: itemsList,
       subtotal: json['subtotal'] ?? 0,
       billDiscount: json['billDiscount'] ?? 0,

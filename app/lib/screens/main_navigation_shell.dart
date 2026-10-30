@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../core/storage/master_catalog_service.dart';
 import '../../core/storage/storage_service.dart';
+import '../../core/utils/receipt_share_helper.dart';
 import '../../models/customer_model.dart';
 import '../../models/product_model.dart';
 import '../../models/shop_mint_models.dart';
@@ -22,16 +23,34 @@ export 'sales/my_sales_tab.dart' show MySalesTab;
 export 'shop/my_shop_tab.dart' show MyShopTab;
 
 class MainNavigationShell extends StatelessWidget {
-  const MainNavigationShell({super.key});
+  final List<ProductItem>? initialProducts;
+  final List<OrderRecord>? initialOrders;
+
+  const MainNavigationShell({
+    super.key,
+    this.initialProducts,
+    this.initialOrders,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return const ShopMintShell();
+    return ShopMintShell(
+      initialProducts: initialProducts,
+      initialOrders: initialOrders,
+    );
   }
 }
 
 class ShopMintShell extends StatefulWidget {
-  const ShopMintShell({super.key});
+  final List<ProductItem>? initialProducts;
+  final List<OrderRecord>? initialOrders;
+
+  const ShopMintShell({
+    super.key,
+    this.initialProducts,
+    this.initialOrders,
+  });
+
   @override
   State<ShopMintShell> createState() => _ShopMintShellState();
 }
@@ -40,51 +59,12 @@ class _ShopMintShellState extends State<ShopMintShell> {
   int _tab = 0;
   final StorageService _storage = StorageService();
   final Map<String, BillLine> _bill = {};
-  late List<ProductItem> _products = List.from(initialProducts);
-  late final List<OrderRecord> _orders = [
-    OrderRecord(
-      time: '22:31',
-      total: 88,
-      profit: 18,
-      isUdhaar: true,
-      customerName: 'Verma Ji',
-      customerPhone: '9766500673',
-      items: [
-        BillLine(_products[4], 2),
-        BillLine(_products[0], 3),
-      ],
-    ),
-    OrderRecord(
-      time: '22:05',
-      total: 280,
-      profit: 65,
-      isUdhaar: false,
-      items: [
-        BillLine(_products[6], 2),
-      ],
-    ),
-    OrderRecord(
-      time: '22:02',
-      total: 359,
-      profit: 309,
-      isUdhaar: false,
-      items: [
-        BillLine(_products[2], 1),
-        BillLine(_products[1], 1),
-      ],
-    ),
-    OrderRecord(
-      time: '17:57',
-      total: 643,
-      profit: 142,
-      isUdhaar: false,
-      items: [
-        BillLine(_products[0], 2),
-        BillLine(_products[3], 3),
-        BillLine(_products[7], 1),
-      ],
-    ),
-  ];
+  late List<ProductItem> _products = widget.initialProducts != null
+      ? List.from(widget.initialProducts!)
+      : List.from(initialProducts);
+  late final List<OrderRecord> _orders = widget.initialOrders != null
+      ? List.from(widget.initialOrders!)
+      : [];
 
   String get _storeName {
     try {
@@ -105,13 +85,27 @@ class _ShopMintShellState extends State<ShopMintShell> {
   Future<void> _loadInitialProducts() async {
     try {
       final cached = await _storage.loadLocalProducts();
-      if (cached != null && cached.isNotEmpty && mounted) {
+      final cachedOrders = await _storage.loadLocalOrders();
+      if (mounted) {
         setState(() {
-          _products = cached;
+          if (cached != null && cached.isNotEmpty && widget.initialProducts == null) {
+            _products = cached;
+          }
+          if (cachedOrders != null && cachedOrders.isNotEmpty && widget.initialOrders == null) {
+            final realOrders = cachedOrders
+                .where((o) => !(o.customerName == 'Verma Ji' && o.time == '22:31'))
+                .toList();
+            _orders.clear();
+            _orders.addAll(realOrders);
+          }
         });
       }
     } catch (_) {}
     _syncLiveDatabase();
+  }
+
+  Future<void> _handleRefresh() async {
+    await _loadInitialProducts();
   }
 
   Future<void> _syncLiveDatabase() async {
@@ -147,8 +141,47 @@ class _ShopMintShellState extends State<ShopMintShell> {
               );
             }).toList();
           }
+
+          // If backend has bills and local orders are empty or defaults, sync server bills
+          if (dashProv.salesBills.isNotEmpty) {
+            for (final sb in dashProv.salesBills) {
+              final alreadyExists = _orders.any((o) => o.billNo == sb.billNo);
+              if (!alreadyExists) {
+                final dateStr = '${sb.createdAt.year}-${sb.createdAt.month.toString().padLeft(2, '0')}-${sb.createdAt.day.toString().padLeft(2, '0')}';
+                final timeStr = '${sb.createdAt.hour.toString().padLeft(2, '0')}:${sb.createdAt.minute.toString().padLeft(2, '0')}';
+                final billLines = sb.items.map((it) {
+                  return BillLine(
+                    ProductItem(
+                      name: it.name,
+                      pack: it.unit,
+                      price: it.rate / 100.0,
+                      stock: 10,
+                      imageUrl: it.imageUrl,
+                    ),
+                    it.qty.toInt(),
+                  );
+                }).toList();
+
+                _orders.add(
+                  OrderRecord(
+                    time: timeStr,
+                    date: dateStr,
+                    billNo: sb.billNo,
+                    items: billLines,
+                    total: sb.grandTotal / 100.0,
+                    profit: sb.totalProfit / 100.0,
+                    isUdhaar: sb.balanceDue > 0,
+                    customerName: sb.customerName,
+                    customerPhone: sb.customerPhone,
+                    isPaid: sb.balanceDue == 0,
+                  ),
+                );
+              }
+            }
+          }
         });
         await _storage.saveLocalProducts(_products);
+        await _storage.saveLocalOrders(_orders);
       }
     } catch (_) {}
   }
@@ -337,8 +370,10 @@ class _ShopMintShellState extends State<ShopMintShell> {
       orderProfit += line.product.profit * line.qty;
     }
 
+    final now = DateTime.now();
     final newOrder = OrderRecord(
-      time: '${DateTime.now().hour.toString().padLeft(2, '0')}:${DateTime.now().minute.toString().padLeft(2, '0')}',
+      time: '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}',
+      date: '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}',
       items: lines,
       total: total,
       profit: orderProfit,
@@ -353,9 +388,15 @@ class _ShopMintShellState extends State<ShopMintShell> {
       _tab = 2; // Jump to My Sales
     });
 
+    _storage.saveLocalOrders(_orders);
+
     showNote(
       context,
       isUdhaar ? 'Bill saved to Udhaar for $customerName' : 'Bill completed! Total: ₹${total.toStringAsFixed(0)}',
+      actionLabel: 'Share Receipt',
+      onAction: () {
+        ReceiptShareHelper.shareOrderReceipt(newOrder, shopName: _storeName);
+      },
     );
 
     // Save to real database
@@ -423,7 +464,11 @@ class _ShopMintShellState extends State<ShopMintShell> {
         billProv.setPaymentType('Cash');
       }
 
-      await billProv.saveBill();
+      final savedBill = await billProv.saveBill();
+      if (savedBill != null) {
+        newOrder.billNo = savedBill.billNo;
+        _storage.saveLocalOrders(_orders);
+      }
       await Future.wait([
         dashProv.fetchDashboard(),
         custProv.fetchCustomers(),
@@ -446,6 +491,7 @@ class _ShopMintShellState extends State<ShopMintShell> {
         onProductUpdated: _onProductUpdated,
         onProductDeleted: _onProductDeleted,
         onProductAdded: _addNewProduct,
+        onRefresh: _handleRefresh,
       ),
       MakeBillTab(
         isActive: _tab == 1,
@@ -471,7 +517,11 @@ class _ShopMintShellState extends State<ShopMintShell> {
         orders: _orders,
         products: _products,
         storeName: _storeName,
-        onOrdersChanged: () => setState(() {}),
+        onOrdersChanged: () {
+          setState(() {});
+          _storage.saveLocalOrders(_orders);
+        },
+        onRefresh: _handleRefresh,
       ),
     ];
 

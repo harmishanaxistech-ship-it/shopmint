@@ -7,6 +7,7 @@ import 'providers/billing_provider.dart';
 import 'providers/customer_provider.dart';
 import 'providers/dashboard_provider.dart';
 import 'providers/product_provider.dart';
+import 'models/shop_mint_models.dart';
 import 'screens/main_navigation_shell.dart';
 import 'screens/splash_screen.dart';
 import 'widgets/shop_mint_components.dart';
@@ -24,7 +25,15 @@ Future<void> main() async {
 
 class ShopMintApp extends StatelessWidget {
   final Widget? home;
-  const ShopMintApp({super.key, this.home});
+  final List<ProductItem>? initialProducts;
+  final List<OrderRecord>? initialOrders;
+
+  const ShopMintApp({
+    super.key,
+    this.home,
+    this.initialProducts,
+    this.initialOrders,
+  });
 
   @override
   Widget build(BuildContext context) => MultiProvider(
@@ -51,7 +60,11 @@ class ShopMintApp extends StatelessWidget {
               centerTitle: false,
             ),
           ),
-          home: home ?? const ShopMintShell(),
+          home: home ??
+              ShopMintShell(
+                initialProducts: initialProducts,
+                initialOrders: initialOrders,
+              ),
         ),
       );
 }

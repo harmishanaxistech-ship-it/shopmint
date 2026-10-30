@@ -6,6 +6,7 @@ import '../../core/storage/master_catalog_service.dart';
 import '../../models/product_model.dart';
 import '../../models/shop_mint_models.dart';
 import '../../providers/product_provider.dart';
+import '../settings/settings_screen.dart';
 import '../../widgets/app_3d_button.dart';
 import '../../widgets/shop_mint_components.dart';
 
@@ -18,6 +19,7 @@ class MyShopTab extends StatefulWidget {
     this.onProductUpdated,
     this.onProductDeleted,
     this.onProductAdded,
+    this.onRefresh,
     this.storeName = 'Ramesh Kirana',
   });
 
@@ -27,6 +29,7 @@ class MyShopTab extends StatefulWidget {
   final void Function(ProductItem item)? onProductUpdated;
   final void Function(ProductItem item)? onProductDeleted;
   final void Function(ProductItem item)? onProductAdded;
+  final Future<void> Function()? onRefresh;
   final String storeName;
 
   @override
@@ -93,9 +96,14 @@ class _MyShopTabState extends State<MyShopTab> {
 
   @override
   Widget build(BuildContext context) {
-    final filtered = widget.products
+    final lowStockCount = widget.products.where((p) => p.isLow).length;
+    var filtered = widget.products
         .where((p) => p.name.toLowerCase().contains(_query.toLowerCase()) || p.barcode.contains(_query))
         .toList();
+
+    if (_subTab == 1) {
+      filtered = filtered.where((p) => p.isLow).toList();
+    }
 
     return Column(
       children: [
@@ -121,7 +129,7 @@ class _MyShopTabState extends State<MyShopTab> {
                 Expanded(
                   child: SegmentTab(
                     label: 'Pending',
-                    badge: '0',
+                    badge: '$lowStockCount',
                     selected: _subTab == 1,
                     onTap: () => setState(() => _subTab = 1),
                   ),
@@ -217,6 +225,8 @@ class _MyShopTabState extends State<MyShopTab> {
                         onPressed: () {
                           if (widget.products.isNotEmpty) {
                             showVanikAddStockSheet(context, widget.products.first, widget.onStockUpdated);
+                          } else {
+                            showNote(context, 'Please add a product first');
                           }
                         },
                       ),
@@ -229,13 +239,36 @@ class _MyShopTabState extends State<MyShopTab> {
         ),
         const SizedBox(height: 12),
         Expanded(
-          child: filtered.isEmpty
-              ? const Center(child: Text('No products found', style: TextStyle(color: muted)))
-              : ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
-                  itemCount: filtered.length,
-                  separatorBuilder: (context, index) => const SizedBox(height: 8),
-                  itemBuilder: (context, index) {
+          child: RefreshIndicator(
+            color: teal,
+            backgroundColor: Colors.white,
+            onRefresh: widget.onRefresh ?? () async {},
+            child: filtered.isEmpty
+                ? LayoutBuilder(
+                    builder: (context, constraints) => SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                        child: Center(
+                          child: Text(
+                            _subTab == 1
+                                ? 'No pending low-stock items'
+                                : widget.products.isEmpty
+                                    ? 'No products in shop yet'
+                                    : 'No products found',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: muted, fontSize: 13),
+                          ),
+                        ),
+                      ),
+                    ),
+                  )
+                : ListView.separated(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+                    itemCount: filtered.length,
+                    separatorBuilder: (context, index) => const SizedBox(height: 8),
+                    itemBuilder: (context, index) {
                     final item = filtered[index];
                     return Container(
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -406,6 +439,7 @@ class _MyShopTabState extends State<MyShopTab> {
                     );
                   },
                 ),
+          ),
         ),
       ],
     );
@@ -465,6 +499,20 @@ class _ShopTopBar extends StatelessWidget {
                         fontWeight: FontWeight.w800,
                         color: teal,
                       ),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      tooltip: 'Settings',
+                      visualDensity: VisualDensity.compact,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                      icon: const Icon(Icons.settings_outlined, color: muted, size: 21),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                        );
+                      },
                     ),
                   ],
                 ),

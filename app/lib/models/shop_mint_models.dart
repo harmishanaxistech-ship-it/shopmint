@@ -70,6 +70,16 @@ class BillLine {
   final ProductItem product;
   int qty;
   double get total => product.price * qty;
+
+  Map<String, dynamic> toJson() => {
+        'product': product.toJson(),
+        'qty': qty,
+      };
+
+  factory BillLine.fromJson(Map<String, dynamic> json) => BillLine(
+        ProductItem.fromJson(Map<String, dynamic>.from(json['product'] as Map)),
+        (json['qty'] as num?)?.toInt() ?? 1,
+      );
 }
 
 class OrderRecord {
@@ -81,6 +91,9 @@ class OrderRecord {
     this.isUdhaar = false,
     this.customerName,
     this.customerPhone,
+    this.isPaid = false,
+    this.date,
+    this.billNo,
   });
 
   final String time;
@@ -90,91 +103,41 @@ class OrderRecord {
   final bool isUdhaar;
   final String? customerName;
   final String? customerPhone;
-  bool isPaid = false;
+  bool isPaid;
+  final String? date;
+  String? billNo;
+
+  Map<String, dynamic> toJson() => {
+        'time': time,
+        'items': items.map((i) => i.toJson()).toList(),
+        'total': total,
+        'profit': profit,
+        'isUdhaar': isUdhaar,
+        'customerName': customerName,
+        'customerPhone': customerPhone,
+        'isPaid': isPaid,
+        'date': date,
+        'billNo': billNo,
+      };
+
+  factory OrderRecord.fromJson(Map<String, dynamic> json) {
+    final rawItems = json['items'] as List? ?? [];
+    return OrderRecord(
+      time: json['time'] as String? ?? '',
+      items: rawItems.map((e) => BillLine.fromJson(Map<String, dynamic>.from(e as Map))).toList(),
+      total: (json['total'] as num?)?.toDouble() ?? 0.0,
+      profit: (json['profit'] as num?)?.toDouble() ?? 0.0,
+      isUdhaar: json['isUdhaar'] as bool? ?? false,
+      customerName: json['customerName'] as String?,
+      customerPhone: json['customerPhone'] as String?,
+      isPaid: json['isPaid'] as bool? ?? false,
+      date: json['date'] as String?,
+      billNo: json['billNo'] as String?,
+    );
+  }
 }
 
-final List<ProductItem> initialProducts = [
-  ProductItem(
-    name: 'Mad Angles',
-    pack: 'piece',
-    price: 20,
-    stock: 55,
-    barcode: '8909081007156',
-    imageUrl: 'https://images.openfoodfacts.org/images/products/890/908/100/7156/front_en.1.400.jpg',
-    profit: 5,
-    soldCount: 5,
-  ),
-  ProductItem(
-    name: 'uji coconut water',
-    pack: 'piece',
-    price: 60,
-    stock: 15,
-    barcode: '8901030865070',
-    imageUrl: 'https://images.openfoodfacts.org/images/products/890/103/086/5070/front_en.3.400.jpg',
-    profit: 20,
-    soldCount: 3,
-  ),
-  ProductItem(
-    name: 'Peanut butter',
-    pack: 'piece',
-    price: 299,
-    stock: 3,
-    barcode: '8901725130013',
-    imageUrl: 'https://images.openfoodfacts.org/images/products/890/172/513/0013/front_en.3.400.jpg',
-    profit: 78,
-    soldCount: 2,
-  ),
-  ProductItem(
-    name: 'Dark entasy Bourbon',
-    pack: 'piece',
-    price: 30,
-    stock: 54,
-    barcode: '8901725016302',
-    imageUrl: 'https://images.openfoodfacts.org/images/products/890/172/501/6302/front_en.3.400.jpg',
-    profit: 8,
-    soldCount: 4,
-  ),
-  ProductItem(
-    name: 'Maggi 2-minutes Noodles',
-    pack: 'piece',
-    price: 14,
-    stock: 113,
-    barcode: '8901058010218',
-    imageUrl: 'https://images.openfoodfacts.org/images/products/890/105/801/0218/front_en.4.400.jpg',
-    profit: 3.5,
-    soldCount: 7,
-  ),
-  ProductItem(
-    name: 'Jimjam Pops',
-    pack: 'piece',
-    price: 20,
-    stock: 142,
-    barcode: '8901719101018',
-    imageUrl: 'https://images.openfoodfacts.org/images/products/890/171/910/1018/front_en.3.400.jpg',
-    profit: 6,
-    soldCount: 2,
-  ),
-  ProductItem(
-    name: 'moong dal',
-    pack: 'kg',
-    price: 130,
-    stock: 24,
-    barcode: '8904043901107',
-    imageUrl: '',
-    profit: 28,
-    soldCount: 17,
-  ),
-  ProductItem(
-    name: 'Basmati rice',
-    pack: 'kg',
-    price: 150,
-    stock: 18,
-    barcode: '8901262030022',
-    imageUrl: '',
-    profit: 32,
-    soldCount: 8,
-  ),
-];
+final List<ProductItem> initialProducts = const [];
 
 String sanitizeBarcode(String input) {
   var s = input.trim();

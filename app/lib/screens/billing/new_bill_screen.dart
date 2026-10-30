@@ -248,8 +248,7 @@ class _NewBillScreenState extends State<NewBillScreen> {
     final prodProv = Provider.of<ProductProvider>(context);
     final custProv = Provider.of<CustomerProvider>(context);
 
-    final catalog = widget.products ??
-        (prodProv.products.isNotEmpty ? prodProv.products : ProductModel.demoProducts);
+    final catalog = widget.products ?? prodProv.products;
 
     final matches = catalog
         .where((p) => p.name.toLowerCase().contains(query.toLowerCase()) || p.barcode.contains(query))

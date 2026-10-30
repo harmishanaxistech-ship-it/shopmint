@@ -5,6 +5,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:app/main.dart';
 import 'package:app/models/shop_mint_models.dart';
 import 'package:app/screens/billing/make_bill_tab.dart';
+import 'test_fixtures.dart';
+
+Widget _buildTestApp({List<ProductItem>? products, List<OrderRecord>? orders}) {
+  final prods = products ?? testProducts;
+  return ShopMintApp(
+    initialProducts: prods,
+    initialOrders: orders ?? createTestOrders(prods),
+  );
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -15,8 +24,16 @@ void main() {
   });
 
   group('Product Management and Image Display Tests', () {
-    testWidgets('1. My Shop displays product listing with Edit and Delete action buttons', (tester) async {
+    testWidgets('0. Clean startup without test fixtures starts with 0 products and empty state', (tester) async {
       await tester.pumpWidget(const ShopMintApp());
+      await tester.pumpAndSettle();
+
+      expect(find.text('Shop items: 0'), findsOneWidget);
+      expect(find.text('No products in shop yet'), findsOneWidget);
+    });
+
+    testWidgets('1. My Shop displays product listing with Edit and Delete action buttons', (tester) async {
+      await tester.pumpWidget(_buildTestApp());
       await tester.pumpAndSettle();
 
       // Verify My Shop listing is shown
@@ -32,7 +49,7 @@ void main() {
     });
 
     testWidgets('2. Tapping Edit button opens Edit Product modal with live image preview and allows saving', (tester) async {
-      await tester.pumpWidget(const ShopMintApp());
+      await tester.pumpWidget(_buildTestApp());
       await tester.pumpAndSettle();
 
       // Find first Edit button and tap it
@@ -57,7 +74,7 @@ void main() {
     });
 
     testWidgets('3. Tapping Delete button shows confirmation dialog and cancels or confirms', (tester) async {
-      await tester.pumpWidget(const ShopMintApp());
+      await tester.pumpWidget(_buildTestApp());
       await tester.pumpAndSettle();
 
       // Tap Delete icon of first item
@@ -79,7 +96,7 @@ void main() {
     });
 
     testWidgets('4. Add Product modal in My Shop shows image preview and adds new product', (tester) async {
-      await tester.pumpWidget(const ShopMintApp());
+      await tester.pumpWidget(_buildTestApp());
       await tester.pumpAndSettle();
 
       // Tap Add Product button
@@ -129,29 +146,33 @@ void main() {
         ),
       );
 
+      // Tap to open modal
       await tester.tap(find.text('Open Modal'));
       await tester.pumpAndSettle();
 
-      // Check image and catalog match
+      // Verify modal elements
       expect(find.text('Product Recognized!'), findsOneWidget);
-      expect(find.text('Master FMCG Catalog Match'), findsOneWidget);
       expect(find.text('Product Image URL (optional)'), findsOneWidget);
       expect(find.text('Save and Add to Bill'), findsOneWidget);
+      expect(find.text('Good Day Butter'), findsOneWidget);
 
-      // Save and add
+      // Enter selling price
+      await tester.enterText(find.widgetWithText(TextField, 'Price (₹)'), '30');
+
+      // Tap Save and Add to Bill
       await tester.tap(find.text('Save and Add to Bill'));
       await tester.pumpAndSettle();
 
       expect(addedItem, isNotNull);
-      expect(addedItem!.name, 'Good Day Butter');
-      expect(addedItem!.imageUrl, isNotEmpty);
+      expect(addedItem?.name, 'Good Day Butter');
+      expect(addedItem?.price, 30);
     });
 
-    testWidgets('6. Bottom navigation bar highlights selected page with active indicator and background badge', (tester) async {
-      await tester.pumpWidget(const ShopMintApp());
+    testWidgets('6. Main Navigation Shell active tab highlight styling', (tester) async {
+      await tester.pumpWidget(_buildTestApp());
       await tester.pumpAndSettle();
 
-      // Check My Shop is initially selected
+      // Initial tab is My Shop, label should have active font weight
       final myShopText = tester.widget<Text>(find.text('My Shop'));
       expect(myShopText.style?.fontWeight, FontWeight.w800);
 
@@ -175,7 +196,7 @@ void main() {
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() => tester.view.resetPhysicalSize());
 
-      await tester.pumpWidget(const ShopMintApp());
+      await tester.pumpWidget(_buildTestApp());
       await tester.pumpAndSettle();
 
       // Open Edit modal on narrow screen
@@ -207,7 +228,7 @@ void main() {
     });
 
     testWidgets('8. MakeBillTab respects isActive flag and disables scanner outside Make Bill tab', (tester) async {
-      await tester.pumpWidget(const ShopMintApp());
+      await tester.pumpWidget(_buildTestApp());
       await tester.pumpAndSettle();
 
       // On launch, we are on My Shop (tab 0)
@@ -290,6 +311,113 @@ void main() {
 
       expect(addedProduct?.name, 'Tata Salt 1kg');
       expect(addedQty, 2);
+    });
+
+    testWidgets('10. Pending low-stock tab filters inventory items in My Shop', (tester) async {
+      await tester.pumpWidget(_buildTestApp());
+      await tester.pumpAndSettle();
+
+      // Check initial shop items tab is selected
+      expect(find.text('Shop items: 8'), findsOneWidget);
+      expect(find.text('Mad Angles'), findsOneWidget);
+
+      // Tap on Pending tab (low stock items)
+      await tester.tap(find.text('Pending'));
+      await tester.pumpAndSettle();
+
+      // Peanut butter has stock 3 (<= 5), so it should be visible in Pending
+      expect(find.text('Peanut butter'), findsOneWidget);
+
+      // Tap back to Shop items
+      await tester.tap(find.text('Shop items: 8'));
+      await tester.pumpAndSettle();
+      expect(find.text('Mad Angles'), findsOneWidget);
+    });
+
+    testWidgets('11. Settings button opens Settings screen with Language, Privacy Policy, and Terms', (tester) async {
+      await tester.pumpWidget(_buildTestApp());
+      await tester.pumpAndSettle();
+
+      // Find and tap the settings icon on top bar
+      final settingsIcon = find.byIcon(Icons.settings_outlined);
+      expect(settingsIcon, findsOneWidget);
+      await tester.tap(settingsIcon);
+      await tester.pumpAndSettle();
+
+      // Verify Settings screen elements
+      expect(find.text('Settings'), findsOneWidget);
+      expect(find.text('Language'), findsOneWidget);
+      expect(find.text('Privacy Policy'), findsOneWidget);
+      expect(find.text('Terms & Conditions'), findsOneWidget);
+
+      // Tap Privacy Policy
+      await tester.tap(find.text('Privacy Policy'));
+      await tester.pumpAndSettle();
+      expect(find.text('ShopMint Privacy Policy'), findsOneWidget);
+
+      // Go back
+      await tester.tap(find.byType(BackButton));
+      await tester.pumpAndSettle();
+
+      // Tap Terms & Conditions
+      await tester.tap(find.text('Terms & Conditions'));
+      await tester.pumpAndSettle();
+      expect(find.text('ShopMint Terms of Service'), findsOneWidget);
+    });
+
+    testWidgets('12. Receipt action in My Sales displays itemized receipt dialog', (tester) async {
+      await tester.pumpWidget(_buildTestApp());
+      await tester.pumpAndSettle();
+
+      // Navigate to My Sales
+      await tester.tap(find.text('My Sales'));
+      await tester.pumpAndSettle();
+
+      // Find Receipt button on orders
+      final receiptButtons = find.text('Receipt');
+      expect(receiptButtons, findsWidgets);
+
+      // Tap the first Receipt button
+      await tester.tap(receiptButtons.first);
+      await tester.pumpAndSettle();
+
+      // Verify receipt dialog
+      expect(find.text('Bill Receipt'), findsOneWidget);
+      expect(find.text('Share Receipt'), findsOneWidget);
+      expect(find.text('Close'), findsOneWidget);
+
+      await tester.tap(find.text('Close'));
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('13. My Shop pull-to-refresh triggers RefreshIndicator and reloads inventory', (tester) async {
+      bool refreshed = false;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: MyShopTab(
+              products: testProducts,
+              storeName: 'Test Store',
+              onStockUpdated: () {},
+              onScanRequested: () {},
+              onRefresh: () async {
+                refreshed = true;
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Trigger RefreshIndicator via show()
+      expect(find.byType(RefreshIndicator), findsOneWidget);
+      final future = tester.state<RefreshIndicatorState>(find.byType(RefreshIndicator)).show();
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(seconds: 1));
+      await future;
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(refreshed, isTrue);
     });
   });
 }

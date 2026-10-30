@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
+import '../../core/utils/receipt_share_helper.dart';
 import '../../models/customer_model.dart';
 import '../../models/shop_mint_models.dart';
 import '../../providers/customer_provider.dart';
 import '../../widgets/app_3d_button.dart';
 import '../../widgets/shop_mint_components.dart';
+import '../khata/customer_ledger_screen.dart';
 
 class MySalesTab extends StatefulWidget {
   const MySalesTab({
@@ -13,12 +16,14 @@ class MySalesTab extends StatefulWidget {
     required this.orders,
     required this.products,
     required this.onOrdersChanged,
+    this.onRefresh,
     this.storeName = 'Ramesh Kirana',
   });
 
   final List<OrderRecord> orders;
   final List<ProductItem> products;
   final VoidCallback onOrdersChanged;
+  final Future<void> Function()? onRefresh;
   final String storeName;
 
   @override
@@ -68,15 +73,40 @@ class _MySalesTabState extends State<MySalesTab> {
           ),
         ),
         Expanded(
-          child: _view == 0
-              ? _buildAnalyticsView(todaySales, todayProfit)
-              : _buildBestItemsView(),
+          child: RefreshIndicator(
+            color: teal,
+            backgroundColor: Colors.white,
+            onRefresh: widget.onRefresh ?? () async {},
+            child: _view == 0
+                ? _buildAnalyticsView(todaySales, todayProfit)
+                : _buildBestItemsView(),
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildAnalyticsView(double todaySales, double todayProfit) => ListView(
+  Widget _buildAnalyticsView(double todaySales, double todayProfit) {
+    final now = DateTime.now();
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final currentMonthLabel = '${monthNames[now.month - 1]} ${now.year.toString().substring(2)}';
+
+    final days = List.generate(5, (i) {
+      final d = now.subtract(Duration(days: 5 - i));
+      final dateKey = '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+      final dayLabel = '${d.day} ${monthNames[d.month - 1]}';
+      final dayTotal = widget.orders
+          .where((o) => o.date == dateKey)
+          .fold<double>(0, (sum, o) => sum + o.total);
+      return {'label': dayLabel, 'amount': dayTotal.toInt()};
+    });
+
+    final maxVal = ([todaySales.toInt()] + days.map((d) => d['amount'] as int).toList())
+        .reduce((curr, next) => curr > next ? curr : next);
+    final denom = maxVal > 0 ? maxVal : 1;
+
+    return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
         children: [
           // Sales of Day + 7 Day Bar Chart card
@@ -119,18 +149,18 @@ class _MySalesTabState extends State<MySalesTab> {
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(color: line),
                       ),
-                      child: const Column(
+                      child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Month', style: TextStyle(fontSize: 10, color: muted, fontWeight: FontWeight.w600)),
+                          const Text('Month', style: TextStyle(fontSize: 10, color: muted, fontWeight: FontWeight.w600)),
                           Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(
-                                'September 26',
-                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: teal),
+                                currentMonthLabel,
+                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: teal),
                               ),
-                              Icon(Icons.arrow_drop_down, size: 16, color: teal),
+                              const Icon(Icons.arrow_drop_down, size: 16, color: teal),
                             ],
                           ),
                         ],
@@ -139,19 +169,29 @@ class _MySalesTabState extends State<MySalesTab> {
                   ],
                 ),
                 const SizedBox(height: 20),
-                // 7-day Bar chart with Teal gradient Today bar
+                // 7-day Bar chart with dynamic real days and today bar
                 SizedBox(
                   height: 120,
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      const ChartBar(date: '22 Sep', amount: 0, heightFraction: 0.05, isToday: false),
-                      const ChartBar(date: '23 Sep', amount: 0, heightFraction: 0.05, isToday: false),
-                      const ChartBar(date: '24 Sep', amount: 0, heightFraction: 0.05, isToday: false),
-                      const ChartBar(date: '25 Sep', amount: 890, heightFraction: 0.60, isToday: false),
-                      const ChartBar(date: '26 Sep', amount: 330, heightFraction: 0.35, isToday: false),
-                      ChartBar(date: 'Today', amount: todaySales.toInt(), heightFraction: 0.90, isToday: true),
+                      ...days.map((d) {
+                        final amt = d['amount'] as int;
+                        final frac = amt > 0 ? (amt / denom).clamp(0.08, 1.0) : 0.05;
+                        return ChartBar(
+                          date: d['label'] as String,
+                          amount: amt,
+                          heightFraction: frac,
+                          isToday: false,
+                        );
+                      }),
+                      ChartBar(
+                        date: 'Today',
+                        amount: todaySales.toInt(),
+                        heightFraction: todaySales > 0 ? (todaySales / denom).clamp(0.15, 1.0) : 0.08,
+                        isToday: true,
+                      ),
                     ],
                   ),
                 ),
@@ -183,7 +223,18 @@ class _MySalesTabState extends State<MySalesTab> {
           ),
           if (_ordersExpanded) ...[
             const SizedBox(height: 6),
-            ...List.generate(widget.orders.length, (i) {
+            if (widget.orders.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 20),
+                child: Center(
+                  child: Text(
+                    'No sales recorded today yet',
+                    style: TextStyle(fontSize: 13, color: muted),
+                  ),
+                ),
+              )
+            else
+              ...List.generate(widget.orders.length, (i) {
               final order = widget.orders[i];
               final isExpanded = _expandedOrderIndices.contains(i);
 
@@ -299,10 +350,21 @@ class _MySalesTabState extends State<MySalesTab> {
                                         fontSize: 12,
                                         icon: const Icon(Icons.chat_bubble_rounded, size: 14, color: teal),
                                         label: 'Message',
-                                        onPressed: () => _showWhatsAppReminderDialog(context, order),
+                                        onPressed: () => _showWhatsAppReminderDialog(context, order, widget.storeName),
                                       ),
                                     ),
-                                    const SizedBox(width: 8),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Vanik3DButton(
+                                        variant: VanikButtonVariant.beige,
+                                        height: 38,
+                                        fontSize: 12,
+                                        icon: const Icon(Icons.menu_book_rounded, size: 14, color: teal),
+                                        label: 'Ledger',
+                                        onPressed: () => _openCustomerLedger(context, order),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
                                     Expanded(
                                       child: Vanik3DButton(
                                         variant: VanikButtonVariant.green,
@@ -355,17 +417,46 @@ class _MySalesTabState extends State<MySalesTab> {
                                     ),
                                   ],
                                 ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: canvas,
-                                    borderRadius: BorderRadius.circular(6),
-                                    border: Border.all(color: line),
-                                  ),
-                                  child: Text(
-                                    order.time,
-                                    style: const TextStyle(fontSize: 11, color: muted, fontWeight: FontWeight.w600),
-                                  ),
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    InkWell(
+                                      onTap: () => _showReceiptDialog(context, order, widget.storeName),
+                                      borderRadius: BorderRadius.circular(6),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                                        decoration: BoxDecoration(
+                                          color: mintTint,
+                                          borderRadius: BorderRadius.circular(6),
+                                          border: Border.all(color: mint),
+                                        ),
+                                        child: const Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(Icons.receipt_long_rounded, size: 12, color: teal),
+                                            SizedBox(width: 3),
+                                            Text(
+                                              'Receipt',
+                                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: teal),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: canvas,
+                                        borderRadius: BorderRadius.circular(6),
+                                        border: Border.all(color: line),
+                                      ),
+                                      child: Text(
+                                        order.time,
+                                        style: const TextStyle(fontSize: 11, color: muted, fontWeight: FontWeight.w600),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
@@ -407,14 +498,33 @@ class _MySalesTabState extends State<MySalesTab> {
           ],
         ],
       );
+  }
 
   Widget _buildBestItemsView() {
     final sorted = List<ProductItem>.from(widget.products)
       ..sort((a, b) => b.soldCount.compareTo(a.soldCount));
 
+    if (sorted.isEmpty) {
+      return LayoutBuilder(
+        builder: (context, constraints) => SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: const Center(
+              child: Text(
+                'No products in catalog yet',
+                style: TextStyle(fontSize: 13, color: muted),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     return Stack(
       children: [
         ListView.separated(
+          physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 80),
           itemCount: sorted.length,
           separatorBuilder: (context, index) => const SizedBox(height: 8),
@@ -553,9 +663,88 @@ class _SalesTopBar extends StatelessWidget {
       );
 }
 
-void _showWhatsAppReminderDialog(BuildContext context, OrderRecord order) {
+void _openCustomerLedger(BuildContext context, OrderRecord order) {
+  final custProv = Provider.of<CustomerProvider>(context, listen: false);
+  final cleanName = (order.customerName ?? '').trim();
+  final cleanPhone = (order.customerPhone ?? '').trim();
+
+  CustomerModel? matched;
+  for (final c in custProv.customers) {
+    if ((cleanPhone.isNotEmpty && c.mobile == cleanPhone) ||
+        (cleanName.isNotEmpty && c.name.toLowerCase() == cleanName.toLowerCase())) {
+      matched = c;
+      break;
+    }
+  }
+
+  matched ??= CustomerModel(
+    id: '',
+    name: cleanName.isNotEmpty ? cleanName : 'Customer',
+    mobile: cleanPhone,
+    balance: (order.total * 100).toInt(),
+  );
+
+  Navigator.push(
+    context,
+    MaterialPageRoute(builder: (_) => CustomerLedgerScreen(customer: matched!)),
+  );
+}
+
+void _showReceiptDialog(BuildContext context, OrderRecord order, String storeName) {
+  final receiptText = ReceiptShareHelper.generateOrderReceiptText(order, shopName: storeName);
+  showDialog<void>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      backgroundColor: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: const Row(
+        children: [
+          Icon(Icons.receipt_long_rounded, color: teal, size: 22),
+          SizedBox(width: 8),
+          Text('Bill Receipt', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: ink)),
+        ],
+      ),
+      content: SingleChildScrollView(
+        child: Container(
+          width: double.maxFinite,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: canvas,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: line),
+          ),
+          child: Text(
+            receiptText,
+            style: const TextStyle(fontFamily: 'monospace', fontSize: 11, color: ink, height: 1.3),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('Close', style: TextStyle(fontWeight: FontWeight.w700, color: muted)),
+        ),
+        ElevatedButton.icon(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF25D366),
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+          icon: const Icon(Icons.share_rounded, size: 16),
+          label: const Text('Share Receipt', style: TextStyle(fontWeight: FontWeight.w700)),
+          onPressed: () {
+            Navigator.pop(ctx);
+            ReceiptShareHelper.shareOrderReceipt(order, shopName: storeName);
+          },
+        ),
+      ],
+    ),
+  );
+}
+
+void _showWhatsAppReminderDialog(BuildContext context, OrderRecord order, [String storeName = 'ShopMint Store']) {
   final itemsText = order.items.map((i) => '• ${i.product.name} (${i.qty}.0 pc)').join('\n');
-  final reminder = 'Hello, this is a gentle reminder about your pending udhaar of ₹${order.total.toStringAsFixed(1)} for your purchase at Ramesh Kirana.\n\nHere are the items:\n$itemsText\n\nPlease clear it at your earliest convenience.\n\nManaged via ShopMint';
+  final reminder = 'Hello, this is a gentle reminder about your pending udhaar of ₹${order.total.toStringAsFixed(1)} for your purchase at $storeName.\n\nHere are the items:\n$itemsText\n\nPlease clear it at your earliest convenience.\n\nManaged via ShopMint';
 
   showDialog<void>(
     context: context,
@@ -593,10 +782,15 @@ void _showWhatsAppReminderDialog(BuildContext context, OrderRecord order) {
           child: const Text('Cancel', style: TextStyle(color: muted)),
         ),
         ElevatedButton.icon(
-          onPressed: () {
-            Clipboard.setData(ClipboardData(text: reminder));
-            Navigator.pop(ctx);
-            showNote(context, 'WhatsApp message copied to clipboard!');
+          onPressed: () async {
+            await Clipboard.setData(ClipboardData(text: reminder));
+            if (ctx.mounted) Navigator.pop(ctx);
+            if (context.mounted) {
+              showNote(context, 'WhatsApp message copied to clipboard!');
+            }
+            try {
+              await SharePlus.instance.share(ShareParams(text: reminder));
+            } catch (_) {}
           },
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFF25D366),
@@ -604,7 +798,7 @@ void _showWhatsAppReminderDialog(BuildContext context, OrderRecord order) {
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
           icon: const Icon(Icons.copy_rounded, size: 16),
-          label: const Text('Copy and Open'),
+          label: const Text('Copy and Share'),
         ),
       ],
     ),

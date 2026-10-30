@@ -68,7 +68,17 @@ class _DashboardTabState extends State<DashboardTab> {
       // Find among current products or open quick add with first item
       final matched = products.firstWhere(
         (p) => p.barcode == code,
-        orElse: () => products.first,
+        orElse: () => products.isNotEmpty
+            ? products.first
+            : ProductModel(
+                id: 'new',
+                name: 'New Product',
+                unit: 'piece',
+                purchasePrice: 0,
+                sellingPrice: 0,
+                currentStock: 0,
+                barcode: code ?? '',
+              ),
       );
       QuickAddStockModal.show(context, matched, onChanged: () => setState(() {}));
     }
@@ -83,10 +93,9 @@ class _DashboardTabState extends State<DashboardTab> {
     final shopName = (auth.currentUser?.shopName != null &&
             auth.currentUser!.shopName.trim().isNotEmpty)
         ? auth.currentUser!.shopName
-        : 'Ramesh Kirana Store';
+        : 'My Kirana Store';
 
-    final allProducts = widget.products ??
-        (prodProv.products.isNotEmpty ? prodProv.products : ProductModel.demoProducts);
+    final allProducts = widget.products ?? prodProv.products;
 
     final filtered = allProducts.where((p) {
       final matchesLow = !lowOnly || p.isLow;
@@ -290,30 +299,49 @@ class _DashboardTabState extends State<DashboardTab> {
 
           // Product List
           Expanded(
-            child: filtered.isEmpty
-                ? const Center(
-                    child: Text(
-                      'No items found',
-                      style: TextStyle(color: AppColors.muted),
-                    ),
-                  )
-                : ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 18),
-                    itemCount: filtered.length,
-                    separatorBuilder: (_, index) =>
-                        const Divider(height: 1, color: Color(0xFFDDF0ED)),
-                    itemBuilder: (context, index) => ProductRow(
-                      product: filtered[index],
-                      onTap: () => QuickAddStockModal.show(
-                        context,
-                        filtered[index],
-                        onChanged: () {
-                          widget.onChanged?.call();
-                          setState(() {});
-                        },
+            child: RefreshIndicator(
+              color: AppColors.teal,
+              backgroundColor: Colors.white,
+              onRefresh: () async {
+                final prodProv = Provider.of<ProductProvider>(context, listen: false);
+                await prodProv.fetchProducts();
+                widget.onChanged?.call();
+                if (mounted) setState(() {});
+              },
+              child: filtered.isEmpty
+                  ? LayoutBuilder(
+                      builder: (context, constraints) => SingleChildScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                          child: const Center(
+                            child: Text(
+                              'No items found',
+                              style: TextStyle(color: AppColors.muted),
+                            ),
+                          ),
+                        ),
+                      ),
+                    )
+                  : ListView.separated(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 18),
+                      itemCount: filtered.length,
+                      separatorBuilder: (_, index) =>
+                          const Divider(height: 1, color: Color(0xFFDDF0ED)),
+                      itemBuilder: (context, index) => ProductRow(
+                        product: filtered[index],
+                        onTap: () => QuickAddStockModal.show(
+                          context,
+                          filtered[index],
+                          onChanged: () {
+                            widget.onChanged?.call();
+                            setState(() {});
+                          },
+                        ),
                       ),
                     ),
-                  ),
+            ),
           ),
         ],
       ),

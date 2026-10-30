@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:app/models/shop_mint_models.dart';
+import 'test_fixtures.dart';
 
 void main() {
   group('Barcode Normalization and Matching Tests', () {
@@ -43,9 +44,10 @@ void main() {
       expect(item.barcode, isNot('8901262030015'));
     });
 
-    test('Initial products do not share conflicting barcodes', () {
+    test('Initial products default to empty catalog and test fixtures have unique barcodes', () {
+      expect(initialProducts, isEmpty);
       final barcodes = <String>{};
-      for (final p in initialProducts) {
+      for (final p in testProducts) {
         if (p.barcode.isNotEmpty) {
           expect(barcodes.contains(p.barcode), isFalse,
               reason: 'Duplicate barcode found: ${p.barcode} for ${p.name}');

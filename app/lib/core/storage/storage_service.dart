@@ -10,6 +10,7 @@ class StorageService {
   static const _userNameKey = 'user_name';
   static const _languageKey = 'app_language';
   static const _productsCacheKey = 'shopmint_local_products_v1';
+  static const _ordersCacheKey = 'shopmint_local_orders_v1';
 
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
 
@@ -86,6 +87,24 @@ class StorageService {
     try {
       final List decoded = jsonDecode(raw) as List;
       return decoded.map((e) => ProductItem.fromJson(Map<String, dynamic>.from(e as Map))).toList();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> saveLocalOrders(List<OrderRecord> orders) async {
+    final prefs = await SharedPreferences.getInstance();
+    final jsonList = orders.map((o) => o.toJson()).toList();
+    await prefs.setString(_ordersCacheKey, jsonEncode(jsonList));
+  }
+
+  Future<List<OrderRecord>?> loadLocalOrders() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_ordersCacheKey);
+    if (raw == null || raw.isEmpty) return null;
+    try {
+      final List decoded = jsonDecode(raw) as List;
+      return decoded.map((e) => OrderRecord.fromJson(Map<String, dynamic>.from(e as Map))).toList();
     } catch (_) {
       return null;
     }

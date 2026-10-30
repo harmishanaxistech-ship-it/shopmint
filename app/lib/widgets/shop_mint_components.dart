@@ -638,15 +638,22 @@ class CameraGridPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-void showNote(BuildContext context, String message) {
+void showNote(BuildContext context, String message, {String? actionLabel, VoidCallback? onAction}) {
   ScaffoldMessenger.of(context).hideCurrentSnackBar();
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(
       content: Text(message, style: const TextStyle(fontWeight: FontWeight.w600)),
       backgroundColor: ink,
-      duration: const Duration(seconds: 2),
+      duration: actionLabel != null ? const Duration(seconds: 4) : const Duration(seconds: 2),
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      action: (actionLabel != null && onAction != null)
+          ? SnackBarAction(
+              label: actionLabel,
+              textColor: mint,
+              onPressed: onAction,
+            )
+          : null,
     ),
   );
 }

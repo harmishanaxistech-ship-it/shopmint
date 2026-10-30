@@ -1,9 +1,54 @@
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../models/bill_model.dart';
+import '../../models/shop_mint_models.dart';
 import 'currency_formatter.dart';
 
 class ReceiptShareHelper {
+  static String generateOrderReceiptText(OrderRecord order, {String shopName = 'ShopMint Store'}) {
+    final buffer = StringBuffer();
+    buffer.writeln('================================');
+    buffer.writeln('  $shopName');
+    if (order.billNo != null && order.billNo!.isNotEmpty) {
+      buffer.writeln('  Bill No: ${order.billNo}');
+    }
+    buffer.writeln('  Time: ${order.time}');
+    if (order.customerName != null && order.customerName!.isNotEmpty) {
+      buffer.writeln('  Customer: ${order.customerName}');
+    }
+    buffer.writeln('================================');
+    buffer.writeln('ITEMS:');
+
+    for (int i = 0; i < order.items.length; i++) {
+      final line = order.items[i];
+      buffer.writeln('${i + 1}. ${line.product.name}');
+      buffer.writeln('   ${line.qty} ${line.product.pack} x ₹${line.product.price.toInt()} = ₹${line.total.toInt()}');
+    }
+
+    buffer.writeln('--------------------------------');
+    buffer.writeln('GRAND TOTAL: ₹${order.total.toInt()}');
+    buffer.writeln('Payment: ${order.isUdhaar ? "Udhaar (Credit)" : "Paid"}');
+    buffer.writeln('================================');
+    buffer.writeln('Thank you for shopping with us!');
+    buffer.writeln('================================');
+
+    return buffer.toString();
+  }
+
+  static Future<void> shareOrderReceipt(OrderRecord order, {String shopName = 'ShopMint Store'}) async {
+    final text = generateOrderReceiptText(order, shopName: shopName);
+    try {
+      await SharePlus.instance.share(
+        ShareParams(
+          text: text,
+          subject: 'Receipt from $shopName',
+        ),
+      );
+    } catch (_) {
+      await Clipboard.setData(ClipboardData(text: text));
+    }
+  }
+
   static String generateReceiptText(BillModel bill, {String shopName = 'ShopMint Store'}) {
     final buffer = StringBuffer();
     buffer.writeln('================================');
